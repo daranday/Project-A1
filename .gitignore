@@ -26,3 +26,7 @@
 *.exe
 *.out
 *.app
+
+# Temp C++ Files
+*.hpp
+bin
