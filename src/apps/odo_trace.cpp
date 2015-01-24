@@ -186,7 +186,7 @@ rplidar_feedback_handler(const lcm_recv_buf_t *rbuf, const char *channel, const 
 	single_line[2] = /*maebot starting z*/ 0.0;
 	
 	char rp_buffer[32];
-	sprintf(rp_buffer, "rp%d", (state.rp_counter++));
+	sprintf(rp_buffer, "rp%d", 0);
 	
 	vx_buffer_t *mybuf = vx_world_get_buffer(vx_state.world, rp_buffer);
 	//printf("\t%f\t%f\n", matd_get(state.bot, 0, 0), matd_get(state.bot, 1, 0));
@@ -439,7 +439,7 @@ static void display_finished(vx_application_t * app, vx_display_t * disp)
 
 static void display_started(vx_application_t * app, vx_display_t * disp)
 {
-	vx_state_t * VX_state = app->impl;
+	vx_state_t * VX_state = (vx_state_t*)app->impl;
 	
 	vx_layer_t * layer = vx_layer_create(VX_state->world);
 	vx_layer_set_display(layer, disp);

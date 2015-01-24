@@ -9,6 +9,14 @@ CFLAGS = $(CFLAGS_STD) \
 	 $(CFLAGS_LCMTYPES) \
 	 -O2
 
+CXXFLAGS = $(CXXFLAGS_STD) \
+	 $(CFLAGS_VX_GTK) \
+         $(CFLAGS_IMAGESOURCE) \
+	 $(CFLAGS_MATH) \
+	 $(CFLAGS_COMMON) \
+	 $(CFLAGS_LCMTYPES) \
+	 -O2
+
 LDFLAGS = $(LDFLAGS_STD) \
 	  $(LDFLAGS_VX_GTK) \
 	  $(LDFLAGS_IMAGESOURCE) \
@@ -55,7 +63,7 @@ $(BIN_EECS467_MAEBOT_VIDEO_TELOP): maebot_video_teleop.o $(LIBDEPS)
 
 $(BIN_ODO_TRACE): odo_trace.o $(LIBDEPS)
 	@echo "\t$@"
-	@$(CC) -o $@ $^ $(LDFLAGS) 
+	@$(CXX) -o $@ $^ $(LDFLAGS)  $(CXXFLAGS)
 
 clean:
 	@rm -f *.o *~ *.a
