@@ -33,11 +33,12 @@ BIN_EECS467_GUI_EXAMPLE = $(BIN_PATH)/eecs467_gui_example
 BIN_EECS467_REXARM_EXAMPLE = $(BIN_PATH)/eecs467_rexarm_example
 BIN_EECS467_MAEBOT_EXAMPLE = $(BIN_PATH)/eecs467_maebot_example
 BIN_EECS467_MAEBOT_VIDEO_TELOP = $(BIN_PATH)/eecs467_maebot_video_telop
-BIN_ODO_TRACE = $(BIN_PATH)/odo_trace
+BIN_MAEBOT_VIEW = $(BIN_PATH)/maebot_view
+BIN_PROJECT1 = $(BIN_PATH)/project1
 
 ALL = $(LIB_EECS467) $(BIN_EECS467_GUI_EXAMPLE) $(BIN_EECS467_REXARM_EXAMPLE) \
       $(BIN_EECS467_MAEBOT_EXAMPLE) $(BIN_EECS467_MAEBOT_VIDEO_TELOP) \
-      $(BIN_ODO_TRACE)
+      $(BIN_PROJECT1)
 
 all: $(ALL)
 
@@ -61,9 +62,9 @@ $(BIN_EECS467_MAEBOT_VIDEO_TELOP): maebot_video_teleop.o $(LIBDEPS)
 	@echo "\t$@"
 	@$(CC) -o $@ $^ $(LDFLAGS)
 
-$(BIN_ODO_TRACE): odo_trace.o $(LIBDEPS)
+$(BIN_PROJECT1): project1.o maebot_view.o $(LIBDEPS)
 	@echo "\t$@"
-	@$(CXX) -o $@ $^ $(LDFLAGS)  $(CXXFLAGS)
+	@$(CXX) -o $@ $^ $(LDFLAGS) $(CXXFLAGS)
 
 clean:
 	@rm -f *.o *~ *.a
