@@ -27,6 +27,7 @@
 *.out
 *.app
 
-# Temp C++ Files
+# Custom Additions
 *.hpp
 bin
+*.jlp
