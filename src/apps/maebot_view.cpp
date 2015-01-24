@@ -327,8 +327,8 @@ int Maebot_View::start (int argc, char** argv)
 	
 
 	pthread_t lcm_lidar_thread, lcm_motor_thread, lcm_imu_thread;
-	pthread_create(&lcm_motor_thread, NULL, lcm_motor_handler, (void*)(&state));
-	pthread_create(&lcm_lidar_thread, NULL, lcm_lidar_handler, (void*)(&state));
+	// pthread_create(&lcm_motor_thread, NULL, lcm_motor_handler, (void*)(&state));
+	// pthread_create(&lcm_lidar_thread, NULL, lcm_lidar_handler, (void*)(&state));
 	pthread_create(&lcm_imu_thread, NULL, lcm_imu_handler, (void*)(&state));
 	
 	vx_gtk_display_source_t * appwrap = vx_gtk_display_source_create(&app);
