@@ -141,7 +141,7 @@ motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *channel, const m
 		
 		//printf("%f\t%f\t%f\n", matd_get(state.bot, 0, 0), matd_get(state.bot, 1, 0), matd_get(state.bot, 2, 0));
 		char odo_buffer[32];
-		float pt[3] = {matd_get(state.bot, 0, 0), matd_get(state.bot, 1, 0), 0.0};
+		float pt[3] = {(float)matd_get(state.bot, 0, 0), (float)matd_get(state.bot, 1, 0), 0.0};
 		sprintf(odo_buffer, "odo%d", state.odo_counter++);
 		vx_resc_t *one_point = vx_resc_copyf(pt,3);
 		vx_buffer_t *buf = vx_world_get_buffer(vx_state.world, odo_buffer);
@@ -285,7 +285,7 @@ sensor_data_handler (const lcm_recv_buf_t *rbuf, const char *channel,
   //printf("%f\t%f\t\t%f\n", matd_get(imu_state.bot, 0, 0), matd_get(imu_state.bot, 1, 0), matd_get(imu_state.bot, 2, 0));
   
   char imu_buffer[32];
-  float pt[3] = {(-0.125) * matd_get(imu_state.bot, 0, 0), (-0.125) * matd_get(imu_state.bot, 1, 0), 0.0};
+  float pt[3] = {(float)((-0.125) * (float)matd_get(imu_state.bot, 0, 0)), (float)((-0.125) * matd_get(imu_state.bot, 1, 0)), 0.0};
   sprintf(imu_buffer, "imu%d", state.imu_counter++);
   //printf("\t\t%s\n", state.buffer);
   vx_resc_t *one_point = vx_resc_copyf(pt,3);
@@ -339,7 +339,10 @@ main (int argc, char *argv[])
 	vx_state.obj_data = zarray_create(sizeof(obj_data_t));
 	// ADD_OBJECT(obj_type, args);
 	
-	vx_application_t app = {.impl=&vx_state, .display_started = display_started, .display_finished = display_finished};
+	vx_application_t app;
+	app.impl=&vx_state;
+	app.display_started = display_started;
+	app.display_finished = display_finished;
 	
 	gdk_threads_init();
 	gdk_threads_enter();
