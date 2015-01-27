@@ -201,21 +201,21 @@ void sensor_data_handler (const lcm_recv_buf_t *rbuf, const char *channel, const
 
 void occupancy_grid_handler(const lcm::ReceiveBuffer* rbuf, const std::string& channel, const maebot_occupancy_grid_t* msg, void* state) 
 {
-    std::cout << "hello\n";
     occupancy_grid_state.grid->fromLCM(*msg);
-    std::cout << "hello\n";
-
+    
     int w = occupancy_grid_state.grid->widthInCells();
     int h = occupancy_grid_state.grid->heightInCells();
 
+    std::cout << "h " << h << ", w " << w << "\n";
+
     image_u8_t *im = image_u8_create (w, h);
     for (int i = 0; i < w; ++i) {
-        
         for (int j = 0; j < h; ++j) {
             im->buf[j*w+i] = 127 - occupancy_grid_state.grid->logOdds(i,j);
+            std::cout << "buf[" << j*w+i << "]: " << occupancy_grid_state.grid->logOdds(i,j) << std::endl;
         }
     }
-    std::cout << "hello\n";
+    std::cout << "done shifting\n";
 
     if (im != NULL) {
 
@@ -286,7 +286,7 @@ void display_started(vx_application_t * app, vx_display_t * disp)
 	
 	vx_layer_t * layer = vx_layer_create(VX_state->world);
 	vx_layer_set_display(layer, disp);
-	vx_layer_set_background_color(layer, vx_black);	
+	// vx_layer_set_background_color(layer, vx_black);	
 
 	// XXX bug in world
 	draw(VX_state->world, VX_state->obj_data);
@@ -377,7 +377,6 @@ int Maebot_View::start (int argc, char** argv)
 
 
     state.lcm.subscribeFunction("OCCUPANCY_GRID", occupancy_grid_handler, (void*) NULL);
-
     
 	pthread_t lcm_lidar_thread, lcm_motor_thread, lcm_imu_thread, lcm_occupancy_grid_thread;
 	pthread_create(&lcm_motor_thread, NULL, lcm_motor_handler, (void*)(&state));

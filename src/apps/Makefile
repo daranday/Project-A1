@@ -24,6 +24,7 @@ LDFLAGS = $(LDFLAGS_STD) \
 	  $(LDFLAGS_COMMON) \
 	  $(LDFLAGS_LCMTYPES)
 
+
 LIBDEPS = $(call libdeps, $(LDFLAGS))
 
 LIB_EECS467 = $(LIB_PATH)/libeecs467.a
@@ -62,7 +63,7 @@ $(BIN_EECS467_MAEBOT_VIDEO_TELOP): maebot_video_teleop.o $(LIBDEPS)
 	@echo "\t$@"
 	@$(CC) -o $@ $^ $(LDFLAGS)
 
-$(BIN_PROJECT1): project1.o maebot_view.o $(LIBDEPS)
+$(BIN_PROJECT1): project1.o maebot_view.o ../mapping/occupancy_grid.o $(LIB_EECS467) $(LIBDEPS)
 	@echo "\t$@"
 	@$(CXX) -o $@ $^ $(LDFLAGS) $(CXXFLAGS)
 
