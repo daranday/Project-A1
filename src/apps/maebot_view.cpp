@@ -1,11 +1,13 @@
 #include "maebot_view.h"
 
+#include <string>
 
 // Variable definition for states
 vx_state_t vx_state;
 State state;
 Odo_state odo_state;
 IMU_State imu_state;
+Occupancy_Grid_State occupancy_grid_state;
 
 /***********
    this is not an actual rotation matrix
@@ -115,8 +117,7 @@ void motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *channel, co
 	//usleep(100000);
 }
 
-void sensor_data_handler (const lcm_recv_buf_t *rbuf, const char *channel,
-	const maebot_sensor_data_t *msg, void *user)
+void sensor_data_handler (const lcm_recv_buf_t *rbuf, const char *channel, const maebot_sensor_data_t *msg, void *user)
 {
   /*
   int res = system ("clear");
@@ -198,6 +199,42 @@ void sensor_data_handler (const lcm_recv_buf_t *rbuf, const char *channel,
   
 }
 
+void occupancy_grid_handler(const lcm::ReceiveBuffer* rbuf, const std::string& channel, const maebot_occupancy_grid_t* msg, void* state) 
+{
+    std::cout << "hello\n";
+    occupancy_grid_state.grid->fromLCM(*msg);
+    std::cout << "hello\n";
+
+    int w = occupancy_grid_state.grid->widthInCells();
+    int h = occupancy_grid_state.grid->heightInCells();
+
+    image_u8_t *im = image_u8_create (w, h);
+    for (int i = 0; i < w; ++i) {
+        
+        for (int j = 0; j < h; ++j) {
+            im->buf[j*w+i] = 127 - occupancy_grid_state.grid->logOdds(i,j);
+        }
+    }
+    std::cout << "hello\n";
+
+    if (im != NULL) {
+
+        vx_object_t * vo = vxo_image_from_u8(im, VXO_IMAGE_FLIPY, VX_TEX_MIN_FILTER);
+
+        vx_buffer_t *vb = vx_world_get_buffer(vx_state.world, "map");
+        vx_buffer_add_back(vb, vxo_pix_coords(VX_ORIGIN_TOP_LEFT,
+                                              vxo_chain (vxo_mat_translate3 (0, 0, -0.001),
+                                                         vo)));
+        vx_buffer_swap(vb);
+    }
+    else {
+        printf("Error converting to image");
+    }
+
+    image_u8_destroy(im);
+}
+
+
 void* lcm_lidar_handler(void *args)
 {
 	State *lcm_state = (State*) args;
@@ -218,12 +255,25 @@ void* lcm_motor_handler(void *args)
 
 void* lcm_imu_handler(void *args)
 {
-	State *i_state = (State*) args;
+	State *lcm_state = (State*) args;
 	while(1){
-		lcm_handle(i_state->imu_lcm);
+		lcm_handle(lcm_state->imu_lcm);
 	}
 	return NULL;
 }
+
+void* lcm_occupancy_grid_handler(void *args)
+{
+    State *lcm_state = (State*) args;
+    //int update_hz = 30;
+
+    while(1){
+        lcm_state->lcm.handle();
+
+    }
+    return NULL;
+}
+
 
 void display_finished(vx_application_t * app, vx_display_t * disp)
 {
@@ -323,14 +373,18 @@ int Maebot_View::start (int argc, char** argv)
 		"MAEBOT_SENSOR_DATA",
 		sensor_data_handler,
 		NULL);
-	
-	
 
-	pthread_t lcm_lidar_thread, lcm_motor_thread, lcm_imu_thread;
-	// pthread_create(&lcm_motor_thread, NULL, lcm_motor_handler, (void*)(&state));
-	// pthread_create(&lcm_lidar_thread, NULL, lcm_lidar_handler, (void*)(&state));
+
+
+    state.lcm.subscribeFunction("OCCUPANCY_GRID", occupancy_grid_handler, (void*) NULL);
+
+    
+	pthread_t lcm_lidar_thread, lcm_motor_thread, lcm_imu_thread, lcm_occupancy_grid_thread;
+	pthread_create(&lcm_motor_thread, NULL, lcm_motor_handler, (void*)(&state));
+	pthread_create(&lcm_lidar_thread, NULL, lcm_lidar_handler, (void*)(&state));
 	pthread_create(&lcm_imu_thread, NULL, lcm_imu_handler, (void*)(&state));
-	
+	pthread_create(&lcm_occupancy_grid_thread, NULL, lcm_occupancy_grid_handler, (void*)(&state));
+
 	vx_gtk_display_source_t * appwrap = vx_gtk_display_source_create(&app);
 	GtkWidget * window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
 	GtkWidget * canvas = vx_gtk_display_source_get_widget(appwrap);
@@ -348,6 +402,51 @@ int Maebot_View::start (int argc, char** argv)
 	
 	vx_gtk_display_source_destroy(appwrap);
 	vx_global_destroy();
-	
+
 	return 0;
 }
+
+
+
+
+
+/* #include <lcm/lcm-cpp.hpp>
+ *
+ * class State {
+ * public:
+ *   lcm::LCM lcm;
+ *   int usefulVariable;
+ * };
+ *
+ * void onMessage(const lcm::ReceiveBuffer* rbuf, const std::string& channel, const MessageType* msg, State* state) {
+ *   // do something with the message.
+ * }
+ *
+ * int main(int argc, char** argv) {
+ *   State* state = new State;
+ *   state->lcm.subscribe("CHANNEL", onMessage, state);
+ *   while(true)
+ *     state->lcm.handle();
+ *   delete state;
+ *   return 0;
+ * }
+
+ * #include <lcm/lcm-cpp.hpp>
+ *
+ * void onMessage(const lcm::ReceiveBuffer* rbuf, const std::string& channel, void*) {
+ *   // do something with the message.  Raw message bytes are
+ *   // accessible via rbuf->data
+ * }
+ *
+ * int main(int argc, char** argv) {
+ *   LCM::lcm lcm;
+ *   lcm.subscribe("CHANNEL", onMessage, NULL);
+ *   while(true)
+ *     lcm.handle();
+ *   return 0;
+ * }
+
+  inline int publish(const std::string& channel, const void *data,unsigned int datalen);
+    inline int publish(const std::string& channel, const MessageType* msg);
+
+ */
