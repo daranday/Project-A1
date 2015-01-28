@@ -187,6 +187,10 @@ void sensor_data_handler (const lcm_recv_buf_t *rbuf, const char *channel, const
   //printf("%f\t\t%f\t\t%f\n", matd_get(state.bot, 0, 0), matd_get(state.bot, 1, 0), matd_get(state.bot, 2, 0));
   //printf("%f\t%f\t\t%f\n", matd_get(imu_state.bot, 0, 0), matd_get(imu_state.bot, 1, 0), matd_get(imu_state.bot, 2, 0));
   
+
+
+  // uncomment below to draw IMU
+  /*
   char imu_buffer[32];
   float pt[3] = {(float)((-0.125) * (float)matd_get(imu_state.bot, 0, 0)), (float)((-0.125) * matd_get(imu_state.bot, 1, 0)), 0.0};
   sprintf(imu_buffer, "imu%d", state.imu_counter++);
@@ -196,6 +200,9 @@ void sensor_data_handler (const lcm_recv_buf_t *rbuf, const char *channel, const
   vx_object_t *imu_trace = vxo_points(one_point, 1, vxo_points_style(vx_green, 2.0f)); 
   vx_buffer_add_back(imu_buf, imu_trace);
   vx_buffer_swap(imu_buf);
+    */
+    // uncomment above to draw IMU
+
   
 }
 
@@ -211,13 +218,16 @@ void occupancy_grid_handler(const lcm::ReceiveBuffer* rbuf, const std::string& c
     std::cout << "h " << h << ", w " << w << "\n";
 
     image_u8_t *im = image_u8_create (w, h);
+
+    std::cout << "stride " << im->stride << "\n";
+
     for (int j = 0; j < h; ++j) {
         for (int i = 0; i < w; ++i) {
-            im->buf[j*w+i] = 127 - occupancy_grid_state.grid->logOdds(i,j);
-            std::cout << (int) im->buf[j*w+i] << ",";
+            im->buf[j*im->stride+i] = 127 - occupancy_grid_state.grid->logOdds(i,j);
+            //std::cout << (int) im->buf[j*im->stride+i] << ",";
             //std::cout << "buf[" << j*w+i << "]: " << occupancy_grid_state.grid->logOdds(i,j) << std::endl;
         }
-        std::cout << std::endl;
+        //std::cout << std::endl;
     }
     std::cout << "done shifting\n";
 
@@ -226,8 +236,8 @@ void occupancy_grid_handler(const lcm::ReceiveBuffer* rbuf, const std::string& c
         vx_object_t * vo = vxo_image_from_u8(im, VXO_IMAGE_NOFLAGS, VX_TEX_MIN_FILTER);
 
         vx_buffer_t *vb = vx_world_get_buffer(vx_state.world, "map");
-        vx_buffer_add_back(vb, vxo_chain (vxo_mat_translate3 (0, 0, -0.001),
-                                                         vo));
+        vx_buffer_add_back(vb, vxo_chain (vxo_mat_translate3 (occupancy_grid_state.grid->originInGlobalFrame().x, occupancy_grid_state.grid->originInGlobalFrame().y, -0.001), 
+                                          vxo_mat_scale(occupancy_grid_state.grid->metersPerCell()), vo));
         vx_buffer_swap(vb);
     }
     else {
@@ -271,7 +281,7 @@ void* lcm_occupancy_grid_handler(void *args)
     //int update_hz = 30;
 
     while(1){
-        lcm_state->lcm.handle();
+        lcm_state->occupancy_grid_lcm.handle();
 
     }
     return NULL;
@@ -379,7 +389,7 @@ int Maebot_View::start (int argc, char** argv)
 
 
 
-    state.lcm.subscribeFunction("OCCUPANCY_GRID", occupancy_grid_handler, (void*) NULL);
+    state.occupancy_grid_lcm.subscribeFunction("OCCUPANCY_GRID", occupancy_grid_handler, (void*) NULL);
     
 	pthread_t lcm_lidar_thread, lcm_motor_thread, lcm_imu_thread, lcm_occupancy_grid_thread;
 	pthread_create(&lcm_motor_thread, NULL, lcm_motor_handler, (void*)(&state));

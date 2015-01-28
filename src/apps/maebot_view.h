@@ -68,11 +68,11 @@ struct vx_state_t{
 extern vx_state_t vx_state;
 
 struct State{
-    lcm::LCM lcm;
+    lcm::LCM occupancy_grid_lcm;
 	lcm_t *motor_lcm;
 	lcm_t *lidar_lcm;
 	lcm_t *imu_lcm;
-    lcm_t *occupancy_grid_lcm;
+    //lcm_t *occupancy_grid_lcm;
 	
 	matd_t* bot; // 3x1 state [x][y][theta]
 	//char buffer[32];
