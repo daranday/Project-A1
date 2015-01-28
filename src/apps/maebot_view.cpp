@@ -201,6 +201,8 @@ void sensor_data_handler (const lcm_recv_buf_t *rbuf, const char *channel, const
 
 void occupancy_grid_handler(const lcm::ReceiveBuffer* rbuf, const std::string& channel, const maebot_occupancy_grid_t* msg, void* state) 
 {
+    std::cout << msg->origin_x << "," << msg->origin_y << "," << msg->meters_per_cell << "," << msg->width << "," << msg->height << "," << msg->num_cells << "\n";
+
     occupancy_grid_state.grid->fromLCM(*msg);
     
     int w = occupancy_grid_state.grid->widthInCells();
@@ -209,22 +211,23 @@ void occupancy_grid_handler(const lcm::ReceiveBuffer* rbuf, const std::string& c
     std::cout << "h " << h << ", w " << w << "\n";
 
     image_u8_t *im = image_u8_create (w, h);
-    for (int i = 0; i < w; ++i) {
-        for (int j = 0; j < h; ++j) {
+    for (int j = 0; j < h; ++j) {
+        for (int i = 0; i < w; ++i) {
             im->buf[j*w+i] = 127 - occupancy_grid_state.grid->logOdds(i,j);
-            std::cout << "buf[" << j*w+i << "]: " << occupancy_grid_state.grid->logOdds(i,j) << std::endl;
+            std::cout << (int) im->buf[j*w+i] << ",";
+            //std::cout << "buf[" << j*w+i << "]: " << occupancy_grid_state.grid->logOdds(i,j) << std::endl;
         }
+        std::cout << std::endl;
     }
     std::cout << "done shifting\n";
 
     if (im != NULL) {
 
-        vx_object_t * vo = vxo_image_from_u8(im, VXO_IMAGE_FLIPY, VX_TEX_MIN_FILTER);
+        vx_object_t * vo = vxo_image_from_u8(im, VXO_IMAGE_NOFLAGS, VX_TEX_MIN_FILTER);
 
         vx_buffer_t *vb = vx_world_get_buffer(vx_state.world, "map");
-        vx_buffer_add_back(vb, vxo_pix_coords(VX_ORIGIN_TOP_LEFT,
-                                              vxo_chain (vxo_mat_translate3 (0, 0, -0.001),
-                                                         vo)));
+        vx_buffer_add_back(vb, vxo_chain (vxo_mat_translate3 (0, 0, -0.001),
+                                                         vo));
         vx_buffer_swap(vb);
     }
     else {

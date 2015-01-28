@@ -23,7 +23,7 @@ void* grid_broadcaster_generator(void* args) {
     while(1) {
         maebot_occupancy_grid_t new_grid_msg = grid.toLCM();
         state.lcm.publish("OCCUPANCY_GRID", &new_grid_msg);
-        usleep(1000000);
+        usleep(5000000);
     }
     return NULL;
 }
@@ -32,11 +32,20 @@ void* grid_broadcaster_generator(void* args) {
 int main(int argc, char** argv) {
 	init_main_handlers();
 	grid = eecs467::OccupancyGrid(p1_grid_width_c, p1_grid_height_c, p1_cell_sides_width_c);
-    for (int i = 0; i < 19; ++i) {
-        grid(0,i) = i;
-        grid(i,0) = i;
+    for (int i = 0; i < 20; ++i) {
+        for (int j = 0; j < 20; ++j) {
+            grid(j,i) = -128;
+        }        
     }
+
+    cout << "###########################" << endl;
     
+    for (int i = 0; i < p1_grid_height_c/p1_cell_sides_width_c; ++i) {
+        for (int j = 0; j < p1_grid_width_c/p1_cell_sides_width_c; ++j) {
+            cout << (int) grid(j,i) << ",";
+        }
+        cout << endl;
+    }
 
     pthread_t grid_broadcaster_thread;
     pthread_create(&grid_broadcaster_thread, NULL, grid_broadcaster_generator, (void*)(&state));
