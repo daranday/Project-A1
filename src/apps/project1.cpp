@@ -26,6 +26,60 @@ struct Cell_state{
 void init_main_handlers() {
 }
 
+void raytrace(double x0, double y0, double x1, double y1)
+{
+    double dx = abs(x1 - x0);
+    double dy = abs(y1 - y0);
+    double x = x0;
+    double y = y0;
+    double n = 0.01 + dx + dy;
+    double x_inc = (x1 > x0) ? 0.01 : -0.01;
+    double y_inc = (y1 > y0) ? 0.01 : -0.01;
+    double error = dx - dy;
+    dx *= 2;
+    dy *= 2;
+
+    cout << x0 << "," << x1 << "," << y0  << "," <<y1 << endl;
+
+
+    for (; n > 0;  n -= 0.01)
+    {
+        // visit(x, y);
+
+        eecs467::Point<double> p(x, y);
+
+        eecs467::Point<int> cell = global_position_to_grid_cell(p,grid);
+        //cout << "cell.x: " << cell.x << "cell.y: " << cell.y << "(" << x << "," << y << ")" << endl;
+        if (grid(cell.x,cell.y) > -118) {
+            grid(cell.x, cell.y) -= 10;
+        }
+
+        if (error > 0)
+        {
+            x += x_inc;
+            error -= dy;
+        }
+
+        else
+        {
+            y += y_inc;
+            error += dx;
+        }
+        //cout << "(" << x << "," << y << ")";
+    }
+    cout << "done looping" << endl;
+
+    //cout <<endl;
+    eecs467::Point<double> p(x1, y1);
+
+    eecs467::Point<int> cell = global_position_to_grid_cell(p,grid);
+    // cout << "cell.x: " << cell.x << "cell.y: " << cell.y << endl;
+    if (grid(cell.x,cell.y) < 107) {
+        grid(cell.x, cell.y) += 20;
+    }
+
+}
+
 
 void rplidar_grid_handler(const lcm_recv_buf_t *rbuf, const char *channel, const maebot_laser_scan_t *scan, void *user)
 {
@@ -47,7 +101,7 @@ void rplidar_grid_handler(const lcm_recv_buf_t *rbuf, const char *channel, const
     vx_buffer_t *mybuf = vx_world_get_buffer(vx_state.world, rp_buffer);
     //printf("\t%f\t%f\n", matd_get(state.bot, 0, 0), matd_get(state.bot, 1, 0));
 
-
+    cout << "drawing boundary" << endl;
     for(i = 0; i < scan->num_ranges; ++i){
         // currently centered around origin, will need to be centered around maebot position
         if(scan->intensities[i] <= 0)
@@ -60,13 +114,14 @@ void rplidar_grid_handler(const lcm_recv_buf_t *rbuf, const char *channel, const
         single_line[4] = single_line[1] - y;
         single_line[5] = 0.0;
         
-        eecs467::Point<double> p(single_line[3],single_line[4]);
+        raytrace(single_line[0], single_line[1], single_line[3], single_line[4]);
+        // eecs467::Point<double> p(single_line[3],single_line[4]);
 
-        eecs467::Point<int> cell = global_position_to_grid_cell(p,grid);
-        // cout << "cell.x: " << cell.x << "cell.y: " << cell.y << endl;
-        if (grid(cell.x,cell.y) < 117) {
-            grid(cell.x, cell.y) += 10;
-        }
+        // eecs467::Point<int> cell = global_position_to_grid_cell(p,grid);
+        // // cout << "cell.x: " << cell.x << "cell.y: " << cell.y << endl;
+        // if (grid(cell.x,cell.y) < 117) {
+        //     grid(cell.x, cell.y) += 10;
+        // }
         
 
         // vx_resc_t *verts = vx_resc_copyf(single_line, npoints*3);
@@ -75,6 +130,7 @@ void rplidar_grid_handler(const lcm_recv_buf_t *rbuf, const char *channel, const
         // vx_buffer_add_back(mybuf, line);
     }
     // vx_buffer_swap(mybuf);
+    cout << "finish drawing boundary" << endl;
 }
 void* lcm_rplidar_grid_handler(void *args) {
     Cell_state *lcm_state = (Cell_state*) args;
