@@ -52,12 +52,11 @@ void rotate_matrix_z(float* x, float* y, float theta) {
 //     }
 // }
 
-void rplidar_feedback_handler(const lcm_recv_buf_t *rbuf, const char *channel, const maebot_laser_scan_t *scan, void *user)
-{
-	printf("Handling rplidar\n");
+void rplidar_feedback_handler(const lcm_recv_buf_t *rbuf, const char *channel, const maebot_laser_scan_t *scan, void *user) {
+   	printf("Handling rplidar\n");
 
 	//ADD_OBJECT(vxo_line, (vxo_mesh_style(vx_green)));
-	int i, npoints;
+   	int i, npoints;
 	float single_line[6]; // x1, y1, z1, x2, y2, z2
 	const float* colors[4] = {vx_blue, vx_purple, vx_orange, vx_yellow};
 
@@ -87,7 +86,7 @@ void rplidar_feedback_handler(const lcm_recv_buf_t *rbuf, const char *channel, c
 		
 		vx_resc_t *verts = vx_resc_copyf(single_line, npoints*3);
 		vx_object_t *line = vxo_lines(verts, npoints, GL_LINES, 
-			vxo_points_style(colors[state.rp_counter % 4], 2.0f));
+		vxo_points_style(colors[state.rp_counter % 4], 2.0f));
 		vx_buffer_add_back(mybuf, line);
 	}
 	vx_buffer_swap(mybuf);
@@ -101,50 +100,57 @@ void motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *channel, co
 	// printf("Handling motor\n");
 	
 	//update state
+	// state.bot = [x,y,theta]
 	if(!odo_state.init){
 		odo_state.left = msg->encoder_left_ticks;
 		odo_state.right = msg->encoder_right_ticks;
 		odo_state.init = 1;
 	} else{
-		odo_state.delta_left = msg->encoder_left_ticks - odo_state.left;
-		odo_state.delta_right = msg->encoder_right_ticks - odo_state.right;
-		//printf("\t%d\t%d\n", delta_left, delta_right);
-		odo_state.delta_s_l = (DISTANCE_TICK * (float)odo_state.delta_left);
-		odo_state.delta_s_r = (DISTANCE_TICK * (float)odo_state.delta_right);
-		odo_state.delta_s =((float)(odo_state.delta_s_l + odo_state.delta_s_r))/2.0;
-		odo_state.delta_theta = ((float)(odo_state.delta_s_r - odo_state.delta_s_l))/WHEEL_BASE + matd_get(state.bot, 2, 0);
-		//printf("\t%f\t%f\t%f\n", delta_s_l, delta_s_r, delta_theta);
-		matd_put(state.bot, 2, 0, odo_state.delta_theta);
+		int delta_left = msg->encoder_left_ticks - odo_state.left;
+		int delta_right = msg->encoder_right_ticks - odo_state.right;
 		
-		if(odo_state.delta_s < 0)
-			odo_state.delta_s = odo_state.delta_s*(-1.0);
+		float delta_s_l = (DISTANCE_TICK * delta_left);
+		float delta_s_r = (DISTANCE_TICK * delta_right);
+
+		float delta_s =(delta_s_l + delta_s_r)/2.0;
+		float delta_theta = (delta_s_r - delta_s_l)/WHEEL_BASE + matd_get(state.bot, 2, 0);
 		
-		odo_state.delta_x = odo_state.delta_s*fcos((float)odo_state.delta_theta) + matd_get(state.bot, 0, 0);
-		matd_put(state.bot, 0, 0, odo_state.delta_x);
+		if(delta_s < 0)
+			delta_s = delta_s*(-1.0);
 		
-		odo_state.delta_y = odo_state.delta_s*fsin((float)odo_state.delta_theta) + matd_get(state.bot, 1, 0);
-		matd_put(state.bot, 1, 0, odo_state.delta_y);
-		
-		//printf("%f\t%f\n", delta_x, delta_y);
+		float delta_x = delta_s*fcos(delta_theta) + matd_get(state.bot, 0, 0);
+		float delta_y = delta_s*fsin(delta_theta) + matd_get(state.bot, 1, 0);
+
+		matd_put(state.bot, 0, 0, delta_x);
+		matd_put(state.bot, 1, 0, delta_y);
+		matd_put(state.bot, 2, 0, delta_theta);
+
+		float left_speed = msg->motor_left_actual_speed;
+		float right_speed = msg->motor_right_actual_speed;
+		float speed = (left_speed + right_speed) / 2.0;
+
+		odo_state.v_x = speed * fcos(delta_theta);
+		odo_state.v_y = speed * fsin(delta_theta);
+		odo_state.v_theta = (right_speed - left_speed) / WHEEL_BASE;
 		
 		odo_state.left = msg->encoder_left_ticks;
 		odo_state.right = msg->encoder_right_ticks;
-		
-		
-		//printf("%f\t%f\t%f\n", matd_get(state.bot, 0, 0), matd_get(state.bot, 1, 0), matd_get(state.bot, 2, 0));
+
+
+		// Update Vx World
 		char odo_buffer[32];
-		float pt[3] = {(float)matd_get(state.bot, 0, 0), (float)matd_get(state.bot, 1, 0), 0.0};
+		float current_position[3] = {(float)matd_get(state.bot, 0, 0), (float)matd_get(state.bot, 1, 0), 0.0};
 		sprintf(odo_buffer, "odo%d", state.odo_counter++);
-		vx_resc_t *one_point = vx_resc_copyf(pt,3);
+
+		vx_resc_t *one_point = vx_resc_copyf(current_position,3);
 		vx_buffer_t *buf = vx_world_get_buffer(vx_state.world, odo_buffer);
 		vx_object_t *trace = vxo_points(one_point, 1, vxo_points_style(vx_red, 2.0f)); 
-		                    /*vxo_chain(vxo_mat_translate3(matd_get(state.bot, 0, 0), matd_get(state.bot, 1, 0), 0.0),
-				       vxo_points(one_point, 1, vxo_points_style(vx_red, 2.0f)));*/
+		// vxo_chain(vxo_mat_translate3(matd_get(state.bot, 0, 0), matd_get(state.bot, 1, 0), 0.0),
+		// vxo_points(one_point, 1, vxo_points_style(vx_red, 2.0f)));
 		vx_buffer_add_back(buf, trace);
 		vx_buffer_swap(buf);
-	}//end else
-	
-	//usleep(100000);
+	}
+	odo_state.last_updated = msg->utime;
 }
 
 void sensor_data_handler (const lcm_recv_buf_t *rbuf, const char *channel, const maebot_sensor_data_t *msg, void *user)
@@ -173,44 +179,42 @@ void sensor_data_handler (const lcm_recv_buf_t *rbuf, const char *channel, const
   if(imu_state.prev_time == 0.0){
   	imu_state.prev_time = msg->utime;	
   }else{
-  	imu_state.delta_time = msg->utime - imu_state.prev_time;
-  	imu_state.delta_time = imu_state.delta_time / 1000000.0;
-  	imu_state.delta_time_squared = powf(imu_state.delta_time, 2.0);
+  	float delta_time = (msg->utime - imu_state.prev_time) / 1000000.0;
   	imu_state.prev_time = msg->utime;
 
-  	imu_state.a_x = (float)msg->accel[0] * ACCEL_2_MET;
-  	imu_state.a_y = (float)msg->accel[1] * ACCEL_2_MET;
-  	imu_state.v_theta = (float)msg->gyro[2] * GYRO_2_RADS;
+  	float delta_time_squared = powf(delta_time, 2.0);
+
+  	float a_x = (float)msg->accel[0] * ACCEL_2_MET;
+  	float a_y = (float)msg->accel[1] * ACCEL_2_MET;
+  	float v_theta = (float)msg->gyro[2] * GYRO_2_RADS;
 
     //update x and y in state
-  	imu_state.delta_x_local = matd_get(imu_state.bot, 0, 1) * imu_state.delta_time + 0.5 * imu_state.a_x * imu_state.delta_time_squared;
-  	imu_state.delta_y_local = matd_get(imu_state.bot, 1, 1) * imu_state.delta_time + 0.5 * imu_state.a_y * imu_state.delta_time_squared;
+  	float delta_x_local = matd_get(imu_state.bot, 0, 1) * delta_time + 0.5 * a_x * delta_time_squared;
+  	float delta_y_local = matd_get(imu_state.bot, 1, 1) * delta_time + 0.5 * a_y * delta_time_squared;
 
-  	imu_state.delta_x_global = imu_state.delta_x_local * cosf(matd_get(imu_state.bot, 2, 0)) +
-  	imu_state.delta_y_local * cosf((M_PI/2) - matd_get(imu_state.bot, 2, 0));
-  	imu_state.delta_y_global = imu_state.delta_x_local * sinf(matd_get(imu_state.bot, 2, 0)) +
-  	imu_state.delta_y_local * sinf((M_PI/2) - matd_get(imu_state.bot, 2, 0));
+  	float delta_x_global = delta_x_local * cosf(matd_get(imu_state.bot, 2, 0)) + delta_y_local * cosf((M_PI/2) - matd_get(imu_state.bot, 2, 0));
+  	float delta_y_global = delta_x_local * sinf(matd_get(imu_state.bot, 2, 0)) + delta_y_local * sinf((M_PI/2) - matd_get(imu_state.bot, 2, 0));
     //update x, y state
-  	matd_put(imu_state.bot, 0, 0, matd_get(imu_state.bot, 0, 0) + imu_state.delta_x_global);
-  	matd_put(imu_state.bot, 1, 0, matd_get(imu_state.bot, 1, 0) + imu_state.delta_y_global);
+  	matd_put(imu_state.bot, 0, 0, matd_get(imu_state.bot, 0, 0) + delta_x_global);
+  	matd_put(imu_state.bot, 1, 0, matd_get(imu_state.bot, 1, 0) + delta_y_global);
 
     //get instantaneous velocity
-    //imu_state.v_x_i = (float)msg->accel[0] * ACCEL_2_MET * imu_state.delta_time;
-    //imu_state.v_y_i = (float)msg->accel[1] * ACCEL_2_MET * imu_state.delta_time;
+    //imu_state.v_x_i = (float)msg->accel[0] * ACCEL_2_MET * delta_time;
+    //imu_state.v_y_i = (float)msg->accel[1] * ACCEL_2_MET * delta_time;
 
     //update Vx, Vy state
-  	matd_put(imu_state.bot, 0, 1, matd_get(imu_state.bot, 0, 1) + imu_state.a_x * imu_state.delta_time);
-  	matd_put(imu_state.bot, 1, 1, matd_get(imu_state.bot, 1, 1) + imu_state.a_y * imu_state.delta_time);
+  	matd_put(imu_state.bot, 0, 1, matd_get(imu_state.bot, 0, 1) + a_x * delta_time);
+  	matd_put(imu_state.bot, 1, 1, matd_get(imu_state.bot, 1, 1) + a_y * delta_time);
 
 
     //update theta
-  	imu_state.delta_theta = imu_state.v_theta * imu_state.delta_time;
+  	float delta_theta = v_theta * delta_time;
 
-  	matd_put(imu_state.bot, 2, 0, matd_get(imu_state.bot, 2, 0) + imu_state.delta_theta);
+  	matd_put(imu_state.bot, 2, 0, matd_get(imu_state.bot, 2, 0) + delta_theta);
 
     //update Vtheta
-    // imu_state.v_theta_i = imu_state.a_theta * imu_state.delta_time;
-    //matd_put(imu_state.bot, 2, 2, matd_get(imu_state.bot, 2, 2) + imu_state.v_theta_i);
+    // v_theta_i = imu_state.a_theta * delta_time;
+    //matd_put(imu_state.bot, 2, 2, matd_get(imu_state.bot, 2, 2) + v_theta_i);
 
   }
 
@@ -238,43 +242,46 @@ void sensor_data_handler (const lcm_recv_buf_t *rbuf, const char *channel, const
 
 void occupancy_grid_handler(const lcm::ReceiveBuffer* rbuf, const std::string& channel, const maebot_occupancy_grid_t* msg, void* state) 
 {
-    std::cout << msg->origin_x << "," << msg->origin_y << "," << msg->meters_per_cell << "," << msg->width << "," << msg->height << "," << msg->num_cells << "\n";
 
-    occupancy_grid_state.grid->fromLCM(*msg);
-    
-    int w = occupancy_grid_state.grid->widthInCells();
-    int h = occupancy_grid_state.grid->heightInCells();
+	occupancy_grid_state.grid->fromLCM(*msg);
 
-    std::cout << "h " << h << ", w " << w << "\n";
+	int w = occupancy_grid_state.grid->widthInCells();
+	int h = occupancy_grid_state.grid->heightInCells();
 
-    image_u8_t *im = image_u8_create (w, h);
 
-    std::cout << "stride " << im->stride << "\n";
+	image_u8_t *im = image_u8_create (w, h);
+	// For debugging
+	// std::cout << msg->origin_x << "," << msg->origin_y << "," << msg->meters_per_cell << "," << msg->width << "," << msg->height << "," << msg->num_cells << "\n";
+	// std::cout << "h " << h << ", w " << w << "\n";
+	// std::cout << "stride " << im->stride << "\n";
 
-    for (int j = 0; j < h; ++j) {
-        for (int i = 0; i < w; ++i) {
-            im->buf[j*im->stride+i] = 127 - occupancy_grid_state.grid->logOdds(i,j);
+
+	for (int j = 0; j < h; ++j) {
+		for (int i = 0; i < w; ++i) {
+			im->buf[j*im->stride+i] = 127 - occupancy_grid_state.grid->logOdds(i,j);
             //std::cout << (int) im->buf[j*im->stride+i] << ",";
             //std::cout << "buf[" << j*w+i << "]: " << occupancy_grid_state.grid->logOdds(i,j) << std::endl;
-        }
+		}
         //std::cout << std::endl;
-    }
-    std::cout << "done shifting\n";
+	}
+	// std::cout << "done shifting\n";
 
-    if (im != NULL) {
+	if (im != NULL) {
 
-        vx_object_t * vo = vxo_image_from_u8(im, VXO_IMAGE_NOFLAGS, VX_TEX_MIN_FILTER);
+		vx_object_t * vo = vxo_image_from_u8(im, VXO_IMAGE_NOFLAGS, VX_TEX_MIN_FILTER);
 
-        vx_buffer_t *vb = vx_world_get_buffer(vx_state.world, "map");
-        vx_buffer_add_back(vb, vxo_chain (vxo_mat_translate3 (occupancy_grid_state.grid->originInGlobalFrame().x, occupancy_grid_state.grid->originInGlobalFrame().y, -0.001), 
-                                          vxo_mat_scale(occupancy_grid_state.grid->metersPerCell()), vo));
-        vx_buffer_swap(vb);
-    }
-    else {
-        printf("Error converting to image");
-    }
-
-    image_u8_destroy(im);
+		vx_buffer_t *vb = vx_world_get_buffer(vx_state.world, "map");
+		vx_buffer_add_back(vb, 	vxo_chain (
+									vxo_mat_translate3 (occupancy_grid_state.grid->originInGlobalFrame().x, 
+														occupancy_grid_state.grid->originInGlobalFrame().y, 
+														-0.001), 
+									vxo_mat_scale(occupancy_grid_state.grid->metersPerCell()), vo));
+		vx_buffer_swap(vb);
+	}
+	else {
+		printf("Error converting to image");
+	}
+	image_u8_destroy(im);
 }
 
 
@@ -307,14 +314,14 @@ void* lcm_imu_handler(void *args)
 
 void* lcm_occupancy_grid_handler(void *args)
 {
-    State *lcm_state = (State*) args;
+	State *lcm_state = (State*) args;
     //int update_hz = 30;
 
-    while(1){
-        lcm_state->occupancy_grid_lcm.handle();
+	while(1){
+		lcm_state->occupancy_grid_lcm.handle();
 
-    }
-    return NULL;
+	}
+	return NULL;
 }
 
 
@@ -419,8 +426,8 @@ int Maebot_View::start (int argc, char** argv)
 
 
 
-    state.occupancy_grid_lcm.subscribeFunction("OCCUPANCY_GRID", occupancy_grid_handler, (void*) NULL);
-    
+	state.occupancy_grid_lcm.subscribeFunction("OCCUPANCY_GRID", occupancy_grid_handler, (void*) NULL);
+
 	pthread_t lcm_lidar_thread, lcm_motor_thread, lcm_imu_thread, lcm_occupancy_grid_thread;
 	pthread_create(&lcm_motor_thread, NULL, lcm_motor_handler, (void*)(&state));
 	pthread_create(&lcm_lidar_thread, NULL, lcm_lidar_handler, (void*)(&state));

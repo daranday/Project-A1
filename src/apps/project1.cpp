@@ -3,7 +3,7 @@
 #include <iostream>
 #include <string>
 #include <fstream>
-#include <unordered_map>
+#include <map>
 #include "../math/point.hpp"
 
 
@@ -15,6 +15,9 @@ const float p1_grid_width_c  = 4;
 const float p1_grid_height_c = 4;
 const float p1_cell_sides_width_c = 0.05;
 
+using IntPoint = eecs467::Point<int>;
+using DoublePoint = eecs467::Point<double>;
+
 eecs467::OccupancyGrid grid;
 
 struct Cell_state{
@@ -25,7 +28,6 @@ struct Cell_state{
 
 void init_main_handlers() {
 }
-
 void raytrace(double x0, double y0, double x1, double y1)
 {
     double dx = abs(x1 - x0);
@@ -41,19 +43,21 @@ void raytrace(double x0, double y0, double x1, double y1)
 
     cout << x0 << "," << x1 << "," << y0  << "," <<y1 << endl;
 
-
+    map<IntPoint, bool> visited;
     for (; n > 0;  n -= 0.01)
     {
         // visit(x, y);
 
         eecs467::Point<double> p(x, y);
-
         eecs467::Point<int> cell = global_position_to_grid_cell(p,grid);
         //cout << "cell.x: " << cell.x << "cell.y: " << cell.y << "(" << x << "," << y << ")" << endl;
-        if (grid(cell.x,cell.y) > -118) {
-            grid(cell.x, cell.y) -= 10;
+        if (visited.find(cell) == visited.end()) {
+            if (grid(cell.x,cell.y) > -128) {       
+                grid(cell.x, cell.y)--;
+            }
+            visited[cell] = true;
         }
-
+        
         if (error > 0)
         {
             x += x_inc;
@@ -74,12 +78,8 @@ void raytrace(double x0, double y0, double x1, double y1)
 
     eecs467::Point<int> cell = global_position_to_grid_cell(p,grid);
     // cout << "cell.x: " << cell.x << "cell.y: " << cell.y << endl;
-    if (grid(cell.x,cell.y) < 107) {
-        grid(cell.x, cell.y) += 20;
-    }
-
+    grid(cell.x, cell.y) = grid(cell.x, cell.y) <= 127 - 3 ? grid(cell.x, cell.y) + 3 : 127;
 }
-
 
 void rplidar_grid_handler(const lcm_recv_buf_t *rbuf, const char *channel, const maebot_laser_scan_t *scan, void *user)
 {
@@ -91,9 +91,6 @@ void rplidar_grid_handler(const lcm_recv_buf_t *rbuf, const char *channel, const
     const float* colors[4] = {vx_blue, vx_purple, vx_orange, vx_yellow};
 
     npoints = 2;
-    single_line[0] = /*maebot starting x*/ (matd_get(state.bot, 0, 0));
-    single_line[1] = /*maebot starting y*/ (matd_get(state.bot, 1, 0));
-    single_line[2] = /*maebot starting z*/ 0.0;
 
     char rp_buffer[32];
     sprintf(rp_buffer, "rp%d", 0);
@@ -106,10 +103,26 @@ void rplidar_grid_handler(const lcm_recv_buf_t *rbuf, const char *channel, const
         // currently centered around origin, will need to be centered around maebot position
         if(scan->intensities[i] <= 0)
             continue;
+
+        float elapsed_time;
+        if (scan->times[i] > odo_state.last_updated)
+            elapsed_time = scan->times[i] - odo_state.last_updated;
+        else
+            elapsed_time = -1.0 * (odo_state.last_updated - scan->times[i]);
+        elapsed_time /= 1000000.0;
+
+
         float x, y;
         x = (scan->ranges[i]) * cosf(scan->thetas[i]);
         y = (scan->ranges[i]) * sinf(scan->thetas[i]);
-        rotate_matrix_z(&x, &y, matd_get(state.bot, 2, 0));
+        rotate_matrix_z(&x, &y, matd_get(state.bot, 2, 0) + elapsed_time * odo_state.v_theta * 0.4);
+
+        fprintf(stderr, "Corrections: x = %f\t y = %f\t delta = %f\n", elapsed_time * odo_state.v_x, elapsed_time * odo_state.v_y, elapsed_time * odo_state.v_theta);
+
+        cerr << "Elapsed time: " << elapsed_time << endl;
+        single_line[0] = /*maebot starting x*/ (matd_get(state.bot, 0, 0)) + elapsed_time * odo_state.v_x;
+        single_line[1] = /*maebot starting y*/ (matd_get(state.bot, 1, 0)) + elapsed_time * odo_state.v_y;
+        single_line[2] = /*maebot starting z*/ 0.0;
         single_line[3] = single_line[0] + x;
         single_line[4] = single_line[1] - y;
         single_line[5] = 0.0;
@@ -170,7 +183,7 @@ void* grid_broadcaster_generator(void* args) {
 
 
 int main(int argc, char** argv) {
-	init_main_handlers();
+    init_main_handlers();
 
     Cell_state cell_state;
 
@@ -185,7 +198,7 @@ int main(int argc, char** argv) {
 
     cell_state.pose_lcm.subscribeFunction("MAEBOT_POSE", pose_handler, (void*) NULL);
 
-	grid = eecs467::OccupancyGrid(p1_grid_width_c, p1_grid_height_c, p1_cell_sides_width_c);
+    grid = eecs467::OccupancyGrid(p1_grid_width_c, p1_grid_height_c, p1_cell_sides_width_c);
     // for (int i = 0; i < 10; ++i) {
     //     for (int j = 0; j < 10; ++j) {
     //         grid(j,i) = 12*i;
@@ -209,7 +222,7 @@ int main(int argc, char** argv) {
     pthread_create(&grid_broadcaster_thread, NULL, grid_broadcaster_generator, (void*)(&cell_state));
     pthread_create(&rplidar_grid_thread, NULL, lcm_rplidar_grid_handler, (void*)(&cell_state));
 
-	Maebot_View maebot_world;
-	maebot_world.start(argc, argv);
+    Maebot_View maebot_world;
+    maebot_world.start(argc, argv);
 }
 

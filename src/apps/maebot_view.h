@@ -89,14 +89,11 @@ struct Odo_state{
 	int32_t right;
 	int8_t init;
 
-	int32_t delta_left;
-	int32_t delta_right;
-	float delta_s;
-	float delta_s_l;
-	float delta_s_r;
-	float delta_x;
-	float delta_y;
-	float delta_theta;
+	float v_x;
+	float v_y;
+	float v_theta;
+
+	int64_t last_updated;
 };
 
 extern Odo_state odo_state;
@@ -123,9 +120,13 @@ struct IMU_State {
 extern IMU_State imu_state;
 
 struct Occupancy_Grid_State {
-    eecs467::OccupancyGrid* grid; 
-    Occupancy_Grid_State() : grid(new eecs467::OccupancyGrid(grid_width_c, grid_height_c, cell_sides_width_c)){}
-    ~Occupancy_Grid_State() { delete grid;}
+    eecs467::OccupancyGrid* grid;
+    Occupancy_Grid_State() {
+    	grid = new eecs467::OccupancyGrid(grid_width_c, grid_height_c, cell_sides_width_c);
+    }
+    ~Occupancy_Grid_State() {
+    	delete grid;
+    }
 };
 
 extern Occupancy_Grid_State occupancy_grid_state;
