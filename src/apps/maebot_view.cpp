@@ -29,49 +29,49 @@ void rotate_matrix_z(float* x, float* y, float theta)
 
 void rplidar_feedback_handler(const lcm::ReceiveBuffer* rbuf, const std::string& channel, const maebot_laser_scan_t *scan, void *user)
 {
-    cout << "hellolidar" << endl;
+    // cout << "hellolidar" << endl;
    	// printf("Handling rplidar\n");
 
-   	int i, npoints;
-	float single_line[6]; // x1, y1, z1, x2, y2, z2
-	const float* colors[4] = {vx_blue, vx_purple, vx_orange, vx_yellow};
+ //   	int i, npoints;
+	// float single_line[6]; // x1, y1, z1, x2, y2, z2
+	// const float* colors[4] = {vx_blue, vx_purple, vx_orange, vx_yellow};
 
-	npoints = 2;
-	single_line[0] = /*maebot starting x*/ state.scale * (state.bot.x);
-	single_line[1] = /*maebot starting y*/ state.scale * (state.bot.y);
-	// single_line[2] = /*maebot starting z*/ 0.0;
+	// npoints = 2;
+	// single_line[0] = /*maebot starting x*/ state.scale * (state.bot.x);
+	// single_line[1] = /*maebot starting y*/ state.scale * (state.bot.y);
+	// // single_line[2] = /*maebot starting z*/ 0.0;
 
-	char rp_buffer[32];
-	sprintf(rp_buffer, "rp%d", 0);
+	// char rp_buffer[32];
+	// sprintf(rp_buffer, "rp%d", 0);
 
-	vx_buffer_t *mybuf = vx_world_get_buffer(vx_state.world, rp_buffer);
-	//printf("\t%f\t%f\n", state.bot.x, state.bot.y);
+	// vx_buffer_t *mybuf = vx_world_get_buffer(vx_state.world, rp_buffer);
+	// //printf("\t%f\t%f\n", state.bot.x, state.bot.y);
 
 
-	for(i = 0; i < scan->num_ranges; ++i){
-		// currently centered around origin, will need to be centered around maebot position
-		if(scan->intensities[i] <= 0)
-			continue;
-		float x, y;
-		x = (state.scale * scan->ranges[i]) * cosf(scan->thetas[i]);
-		y = (state.scale * scan->ranges[i]) * sinf(scan->thetas[i]);
-		rotate_matrix_z(&x, &y, state.bot.theta);
-		single_line[2] = single_line[0] + x;
-		single_line[3] = single_line[1] - y;
-		// single_line[5] = 0.0;
+	// for(i = 0; i < scan->num_ranges; ++i){
+	// 	// currently centered around origin, will need to be centered around maebot position
+	// 	if(scan->intensities[i] <= 0)
+	// 		continue;
+	// 	float x, y;
+	// 	x = (state.scale * scan->ranges[i]) * cosf(scan->thetas[i]);
+	// 	y = (state.scale * scan->ranges[i]) * sinf(scan->thetas[i]);
+	// 	rotate_matrix_z(&x, &y, state.bot.theta);
+	// 	single_line[2] = single_line[0] + x;
+	// 	single_line[3] = single_line[1] - y;
+	// 	// single_line[5] = 0.0;
 		
-		vx_resc_t *verts = vx_resc_copyf(single_line, npoints*2);
-		vx_object_t *line = vxo_lines(verts, npoints, GL_LINES, vxo_points_style(colors[state.rp_counter % 4], 2.0f));
-		vx_buffer_add_back(mybuf, line);
-	}
-	vx_buffer_swap(mybuf);
-    cout << "byelidar" << endl;
+	// 	vx_resc_t *verts = vx_resc_copyf(single_line, npoints*2);
+	// 	vx_object_t *line = vxo_lines(verts, npoints, GL_LINES, vxo_points_style(colors[state.rp_counter % 4], 2.0f));
+	// 	vx_buffer_add_back(mybuf, line);
+	// }
+	// vx_buffer_swap(mybuf);
+ //    // cout << "byelidar" << endl;
 
 }
 
 void motor_feedback_handler (const lcm::ReceiveBuffer* rbuf, const std::string& channel, const maebot_motor_feedback_t *msg, void *user)
 {
-    cout << "hellomotor" << endl;
+    // cout << "hellomotor" << endl;
 	// int res = system ("clear");
 	// if (res)
 	// 	printf ("system clear failed\n");
@@ -129,7 +129,7 @@ void motor_feedback_handler (const lcm::ReceiveBuffer* rbuf, const std::string& 
 		// vx_buffer_swap(buf);
 	}
 	odo_state.last_updated = msg->utime;
-    cout << "byemotor" << endl;
+    // cout << "byemotor" << endl;
 }
 
 void sensor_data_handler (const lcm::ReceiveBuffer* rbuf, const std::string& channel, const maebot_sensor_data_t *msg, void *user)
@@ -219,7 +219,7 @@ void sensor_data_handler (const lcm::ReceiveBuffer* rbuf, const std::string& cha
 
 void occupancy_grid_handler(const lcm::ReceiveBuffer* rbuf, const std::string& channel, const maebot_occupancy_grid_t* msg, void* user) 
 {
-	cout << "hellogrid" << endl;
+	// cout << "hellogrid" << endl;
 	occupancy_grid_state.grid.fromLCM(*msg);
 
 	int w = occupancy_grid_state.grid.widthInCells();
@@ -258,7 +258,7 @@ void occupancy_grid_handler(const lcm::ReceiveBuffer* rbuf, const std::string& c
 		printf("Error converting to image");
 	}
 	image_u8_destroy(im);
-	cout << "byegrid" << endl;
+	// cout << "byegrid" << endl;
 }
 
 

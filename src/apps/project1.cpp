@@ -68,12 +68,16 @@ void raytrace(double x0, double y0, double x1, double y1)
 
 void laser_update_grid_handler(const lcm::ReceiveBuffer* rbuf, const std::string& channel, const maebot_laser_scan_t *scan, void *user)
 {
-    cout << "hellolasergrid" << endl;
+    system("clear");
+    vx_buffer_t *mybuf;
+    int counts = 0;
+    mybuf = vx_world_get_buffer(vx_state.world, "Yellow Laser");
+    // cout << "hellolasergrid" << endl;
     for(int i = 0; i < scan->num_ranges; ++i){
         if(scan->intensities[i] <= 0)
             continue;
         
-        float single_line[4], elapsed_time; 
+        float single_line[4], elapsed_time, plot_line[4]; 
 
         // Calculated Elapsed Time.
 
@@ -88,7 +92,13 @@ void laser_update_grid_handler(const lcm::ReceiveBuffer* rbuf, const std::string
         float x, y;
         x = (scan->ranges[i]) * cosf(scan->thetas[i]);
         y = (scan->ranges[i]) * sinf(scan->thetas[i]);
-        rotate_matrix_z(&x, &y, pose_state.theta + elapsed_time * pose_state.v_theta);
+        rotate_matrix_z(&x, &y, pose_state.theta); + elapsed_time * pose_state.v_theta);
+
+        plot_line[0] = state.scale * (pose_state.x + elapsed_time * pose_state.v_x);
+        plot_line[1] = state.scale * (pose_state.y + elapsed_time * pose_state.v_y);
+        plot_line[2] = plot_line[0] + state.scale * x;
+        plot_line[3] = plot_line[1] - state.scale * y;
+
 
         // fprintf(stderr, "Corrections: x = %f\t y = %f\t delta = %f\n", elapsed_time * pose_state.v_x, elapsed_time * pose_state.v_y, elapsed_time * pose_state.v_theta);
 
@@ -98,16 +108,34 @@ void laser_update_grid_handler(const lcm::ReceiveBuffer* rbuf, const std::string
         single_line[2] = single_line[0] + x;
         single_line[3] = single_line[1] - y;
 
-        printf("%.4f\t%.4f\t%.4f\t%.4f\n", pose_state.v_x, pose_state.v_y, pose_state.v_theta, elapsed_time);
-        printf("%.4f\t%.4f\t%.4f\t%.4f\n", single_line[0], single_line[1], single_line[2], single_line[3]);
+        if (fabs(pose_state.v_theta) > 10 )
+            return;
+
+        // printf("%.4f\t%.4f\t%.4f\t%.4f\n", pose_state.v_x, pose_state.v_y, pose_state.v_theta, elapsed_time);
+        // printf("%d\t%.3f\t%.3f\t%.3f\t%.3f\t\t%.3f\t\t%.3f\n", counts, plot_line[0], plot_line[1], plot_line[2], plot_line[3], elapsed_time * pose_state.v_theta,
+        //                                             distance_between_points(DoublePoint(plot_line[0], plot_line[1]), DoublePoint(plot_line[2], plot_line[3])));
+
         
+        vx_resc_t *verts = vx_resc_copyf(plot_line, 2 * 2);
+        vx_object_t *line = vxo_lines(verts, 2, GL_LINES, vxo_points_style(counts < 290/3 ? vx_red : counts < 290*2/3 ? vx_purple : vx_yellow, 2.0f));
+        vx_buffer_add_back(mybuf, line);
+        counts++;
+
+        // if (counts >= 10) {
+        //     vx_buffer_swap(mybuf);
+        //     mybuf = vx_world_get_buffer(vx_state.world, "Yellow Laser");
+        //     counts = 0;
+        // }
         raytrace(single_line[0], single_line[1], single_line[2], single_line[3]);
     }
-    cout << "byelasergrid" << endl;
+    cout << "-----------" << counts << endl;
+    if (counts != 0)
+            vx_buffer_swap(mybuf);
+    // cout << "byelasergrid" << endl;
 }
 
 void pose_handler(const lcm::ReceiveBuffer* rbuf, const std::string& channel, const maebot_pose_t* msg, void* user) {
-    cout << "hellopose" << endl;
+    // cout << "hellopose" << endl;
     float time_elapsed;
     int64_t last_updated_time = pose_state.last_updated;// odo_state.last_updated
 
@@ -122,6 +150,7 @@ void pose_handler(const lcm::ReceiveBuffer* rbuf, const std::string& channel, co
     pose_state.v_y = speed * sinf(msg->theta);
     pose_state.v_theta = (msg->theta - pose_state.theta) / time_elapsed;
 
+
     pose_state.x = msg->x;
     pose_state.y = msg->y;
     pose_state.theta = msg->theta;
@@ -130,7 +159,7 @@ void pose_handler(const lcm::ReceiveBuffer* rbuf, const std::string& channel, co
     // Update Vx World
     char odo_buffer[32];
     float current_position[3] = {state.scale * (float)pose_state.x, state.scale * (float)pose_state.y, 0.0};
-    sprintf(odo_buffer, "odo%d", state.odo_counter++);
+    // sprintf(odo_buffer, "odo%d", state.odo_counter++);
 
     vx_resc_t *one_point = vx_resc_copyf(current_position,3);
     vx_buffer_t *buf = vx_world_get_buffer(vx_state.world, odo_buffer);
@@ -141,7 +170,7 @@ void pose_handler(const lcm::ReceiveBuffer* rbuf, const std::string& channel, co
     vx_buffer_swap(buf);
 
     // printf("%.4f\t%.4f\t%.4f\t%.4f\t%.4f\t%.4f\t%.4fs\n", pose_state.x, pose_state.y, pose_state.theta, pose_state.v_x, pose_state.v_y, pose_state.v_theta, time_elapsed);
-    cout << "byepose" << endl;
+    // cout << "byepose" << endl;
 }
 
 void* grid_broadcast_generator(void* args) {
