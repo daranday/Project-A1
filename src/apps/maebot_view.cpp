@@ -9,12 +9,15 @@ Odo_state odo_state;
 IMU_State imu_state;
 Occupancy_Grid_State occupancy_grid_state;
 
+using namespace std;
+
 /***********
    this is not an actual rotation matrix
    effectively flips point about x axis
    to be flipped about y axis after (see line 176)
  *********/
-void rotate_matrix_z(float* x, float* y, float theta) {
+void rotate_matrix_z(float* x, float* y, float theta)
+{
 	float new_x, new_y;
 	new_x = *x * cosf(theta) + *y * sinf(theta);
 	new_y = (-1) * (*x) * sinf(theta) + *y * cosf(theta);
@@ -22,54 +25,25 @@ void rotate_matrix_z(float* x, float* y, float theta) {
 	*y = new_y;
 }
 
-// void raytrace(int x0, int y0, int x1, int y1)
-// {
-//     int dx = abs(x1 - x0);
-//     int dy = abs(y1 - y0);
-//     int x = x0;
-//     int y = y0;
-//     int n = 1 + dx + dy;
-//     int x_inc = (x1 > x0) ? 1 : -1;
-//     int y_inc = (y1 > y0) ? 1 : -1;
-//     int error = dx - dy;
-//     dx *= 2;
-//     dy *= 2;
 
-//     for (; n > 0; --n)
-//     {
-//         visit(x, y);
+void rplidar_feedback_handler(const lcm::ReceiveBuffer* rbuf, const std::string& channel, const maebot_laser_scan_t *scan, void *user)
+{
+   	// printf("Handling rplidar\n");
 
-//         if (error > 0)
-//         {
-//             x += x_inc;
-//             error -= dy;
-//         }
-//         else
-//         {
-//             y += y_inc;
-//             error += dx;
-//         }
-//     }
-// }
-
-void rplidar_feedback_handler(const lcm_recv_buf_t *rbuf, const char *channel, const maebot_laser_scan_t *scan, void *user) {
-   	printf("Handling rplidar\n");
-
-	//ADD_OBJECT(vxo_line, (vxo_mesh_style(vx_green)));
    	int i, npoints;
 	float single_line[6]; // x1, y1, z1, x2, y2, z2
 	const float* colors[4] = {vx_blue, vx_purple, vx_orange, vx_yellow};
 
 	npoints = 2;
-	single_line[0] = /*maebot starting x*/ (matd_get(state.bot, 0, 0));
-	single_line[1] = /*maebot starting y*/ (matd_get(state.bot, 1, 0));
-	single_line[2] = /*maebot starting z*/ 0.0;
+	single_line[0] = /*maebot starting x*/ state.scale * (state.bot.x);
+	single_line[1] = /*maebot starting y*/ state.scale * (state.bot.y);
+	// single_line[2] = /*maebot starting z*/ 0.0;
 
 	char rp_buffer[32];
 	sprintf(rp_buffer, "rp%d", 0);
 
 	vx_buffer_t *mybuf = vx_world_get_buffer(vx_state.world, rp_buffer);
-	//printf("\t%f\t%f\n", matd_get(state.bot, 0, 0), matd_get(state.bot, 1, 0));
+	//printf("\t%f\t%f\n", state.bot.x, state.bot.y);
 
 
 	for(i = 0; i < scan->num_ranges; ++i){
@@ -77,22 +51,21 @@ void rplidar_feedback_handler(const lcm_recv_buf_t *rbuf, const char *channel, c
 		if(scan->intensities[i] <= 0)
 			continue;
 		float x, y;
-		x = (scan->ranges[i]) * cosf(scan->thetas[i]);
-		y = (scan->ranges[i]) * sinf(scan->thetas[i]);
-		rotate_matrix_z(&x, &y, matd_get(state.bot, 2, 0));
-		single_line[3] = single_line[0] + x;
-		single_line[4] = single_line[1] - y;
-		single_line[5] = 0.0;
+		x = (state.scale * scan->ranges[i]) * cosf(scan->thetas[i]);
+		y = (state.scale * scan->ranges[i]) * sinf(scan->thetas[i]);
+		rotate_matrix_z(&x, &y, state.bot.theta);
+		single_line[2] = single_line[0] + x;
+		single_line[3] = single_line[1] - y;
+		// single_line[5] = 0.0;
 		
-		vx_resc_t *verts = vx_resc_copyf(single_line, npoints*3);
-		vx_object_t *line = vxo_lines(verts, npoints, GL_LINES, 
-		vxo_points_style(colors[state.rp_counter % 4], 2.0f));
+		vx_resc_t *verts = vx_resc_copyf(single_line, npoints*2);
+		vx_object_t *line = vxo_lines(verts, npoints, GL_LINES, vxo_points_style(colors[state.rp_counter % 4], 2.0f));
 		vx_buffer_add_back(mybuf, line);
 	}
 	vx_buffer_swap(mybuf);
 }
 
-void motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *channel, const maebot_motor_feedback_t *msg, void *user)
+void motor_feedback_handler (const lcm::ReceiveBuffer* rbuf, const std::string& channel, const maebot_motor_feedback_t *msg, void *user)
 {
 	// int res = system ("clear");
 	// if (res)
@@ -113,17 +86,17 @@ void motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *channel, co
 		float delta_s_r = (DISTANCE_TICK * delta_right);
 
 		float delta_s =(delta_s_l + delta_s_r)/2.0;
-		float delta_theta = (delta_s_r - delta_s_l)/WHEEL_BASE + matd_get(state.bot, 2, 0);
+		float delta_theta = (delta_s_r - delta_s_l)/WHEEL_BASE + state.bot.theta;
 		
 		if(delta_s < 0)
 			delta_s = delta_s*(-1.0);
 		
-		float delta_x = delta_s*fcos(delta_theta) + matd_get(state.bot, 0, 0);
-		float delta_y = delta_s*fsin(delta_theta) + matd_get(state.bot, 1, 0);
+		float delta_x = delta_s*fcos(delta_theta) + state.bot.x;
+		float delta_y = delta_s*fsin(delta_theta) + state.bot.y;
 
-		matd_put(state.bot, 0, 0, delta_x);
-		matd_put(state.bot, 1, 0, delta_y);
-		matd_put(state.bot, 2, 0, delta_theta);
+		state.bot.x = delta_x;
+		state.bot.y = delta_y;
+		state.bot.theta = delta_theta;
 
 		float left_speed = msg->motor_left_actual_speed;
 		float right_speed = msg->motor_right_actual_speed;
@@ -139,13 +112,13 @@ void motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *channel, co
 
 		// Update Vx World
 		char odo_buffer[32];
-		float current_position[3] = {(float)matd_get(state.bot, 0, 0), (float)matd_get(state.bot, 1, 0), 0.0};
+		float current_position[3] = {state.scale * (float)state.bot.x, state.scale * (float)state.bot.y, 0.0};
 		sprintf(odo_buffer, "odo%d", state.odo_counter++);
 
 		vx_resc_t *one_point = vx_resc_copyf(current_position,3);
 		vx_buffer_t *buf = vx_world_get_buffer(vx_state.world, odo_buffer);
 		vx_object_t *trace = vxo_points(one_point, 1, vxo_points_style(vx_red, 2.0f)); 
-		// vxo_chain(vxo_mat_translate3(matd_get(state.bot, 0, 0), matd_get(state.bot, 1, 0), 0.0),
+		// vxo_chain(vxo_mat_translate3(state.bot.x, state.bot.y, 0.0),
 		// vxo_points(one_point, 1, vxo_points_style(vx_red, 2.0f)));
 		vx_buffer_add_back(buf, trace);
 		vx_buffer_swap(buf);
@@ -153,7 +126,7 @@ void motor_feedback_handler (const lcm_recv_buf_t *rbuf, const char *channel, co
 	odo_state.last_updated = msg->utime;
 }
 
-void sensor_data_handler (const lcm_recv_buf_t *rbuf, const char *channel, const maebot_sensor_data_t *msg, void *user)
+void sensor_data_handler (const lcm::ReceiveBuffer* rbuf, const std::string& channel, const maebot_sensor_data_t *msg, void *user)
 {
   /*
   int res = system ("clear");
@@ -218,7 +191,7 @@ void sensor_data_handler (const lcm_recv_buf_t *rbuf, const char *channel, const
 
   }
 
-  //printf("%f\t\t%f\t\t%f\n", matd_get(state.bot, 0, 0), matd_get(state.bot, 1, 0), matd_get(state.bot, 2, 0));
+  //printf("%f\t\t%f\t\t%f\n", state.bot.x, state.bot.y, state.bot.theta);
   //printf("%f\t%f\t\t%f\n", matd_get(imu_state.bot, 0, 0), matd_get(imu_state.bot, 1, 0), matd_get(imu_state.bot, 2, 0));
   
 
@@ -235,18 +208,15 @@ void sensor_data_handler (const lcm_recv_buf_t *rbuf, const char *channel, const
   vx_buffer_add_back(imu_buf, imu_trace);
   vx_buffer_swap(imu_buf);
     */
-    // uncomment above to draw IMU
-
-  
+    // uncomment above to draw IMU  
 }
 
-void occupancy_grid_handler(const lcm::ReceiveBuffer* rbuf, const std::string& channel, const maebot_occupancy_grid_t* msg, void* state) 
+void occupancy_grid_handler(const lcm::ReceiveBuffer* rbuf, const std::string& channel, const maebot_occupancy_grid_t* msg, void* user) 
 {
+	occupancy_grid_state.grid.fromLCM(*msg);
 
-	occupancy_grid_state.grid->fromLCM(*msg);
-
-	int w = occupancy_grid_state.grid->widthInCells();
-	int h = occupancy_grid_state.grid->heightInCells();
+	int w = occupancy_grid_state.grid.widthInCells();
+	int h = occupancy_grid_state.grid.heightInCells();
 
 
 	image_u8_t *im = image_u8_create (w, h);
@@ -255,12 +225,11 @@ void occupancy_grid_handler(const lcm::ReceiveBuffer* rbuf, const std::string& c
 	// std::cout << "h " << h << ", w " << w << "\n";
 	// std::cout << "stride " << im->stride << "\n";
 
-
 	for (int j = 0; j < h; ++j) {
 		for (int i = 0; i < w; ++i) {
-			im->buf[j*im->stride+i] = 127 - occupancy_grid_state.grid->logOdds(i,j);
+			im->buf[j*im->stride+i] = 127 - occupancy_grid_state.grid.logOdds(i,j);
             //std::cout << (int) im->buf[j*im->stride+i] << ",";
-            //std::cout << "buf[" << j*w+i << "]: " << occupancy_grid_state.grid->logOdds(i,j) << std::endl;
+            //std::cout << "buf[" << j*w+i << "]: " << occupancy_grid_state.grid.logOdds(i,j) << std::endl;
 		}
         //std::cout << std::endl;
 	}
@@ -272,10 +241,10 @@ void occupancy_grid_handler(const lcm::ReceiveBuffer* rbuf, const std::string& c
 
 		vx_buffer_t *vb = vx_world_get_buffer(vx_state.world, "map");
 		vx_buffer_add_back(vb, 	vxo_chain (
-									vxo_mat_translate3 (occupancy_grid_state.grid->originInGlobalFrame().x, 
-														occupancy_grid_state.grid->originInGlobalFrame().y, 
+									vxo_mat_translate3 (state.scale * occupancy_grid_state.grid.originInGlobalFrame().x, 
+														state.scale * occupancy_grid_state.grid.originInGlobalFrame().y, 
 														-0.001), 
-									vxo_mat_scale(occupancy_grid_state.grid->metersPerCell()), vo));
+									vxo_mat_scale(state.scale * occupancy_grid_state.grid.metersPerCell()), vo));
 		vx_buffer_swap(vb);
 	}
 	else {
@@ -285,41 +254,10 @@ void occupancy_grid_handler(const lcm::ReceiveBuffer* rbuf, const std::string& c
 }
 
 
-void* lcm_lidar_handler(void *args)
+void* lcm_handler(void *args)
 {
-	State *lcm_state = (State*) args;
 	while(1){
-		lcm_handle (lcm_state->lidar_lcm);
-	}
-	return NULL;
-}
-
-void* lcm_motor_handler(void *args)
-{
-	State *lcm_state = (State*) args;
-	while(1){
-		lcm_handle(lcm_state->motor_lcm);
-	}
-	return NULL;
-}
-
-void* lcm_imu_handler(void *args)
-{
-	State *lcm_state = (State*) args;
-	while(1){
-		lcm_handle(lcm_state->imu_lcm);
-	}
-	return NULL;
-}
-
-void* lcm_occupancy_grid_handler(void *args)
-{
-	State *lcm_state = (State*) args;
-    //int update_hz = 30;
-
-	while(1){
-		lcm_state->occupancy_grid_lcm.handle();
-
+		state.lcm.handle();
 	}
 	return NULL;
 }
@@ -349,7 +287,7 @@ void draw(vx_world_t * world, zarray_t * obj_data)
 	
 	int cols = sqrt(zarray_size(obj_data)) + 1;
 	int rows = zarray_size(obj_data)/cols + 1;
-	int grid = 4;
+	int grid = 4 * state.scale;
 	
 	for (int y = 0; y < rows; y++) {
 		for (int x = 0; x < cols; x++) {
@@ -374,9 +312,6 @@ void draw(vx_world_t * world, zarray_t * obj_data)
 
 int Maebot_View::start (int argc, char** argv)
 {
-	state.odo_counter = 0;
-	state.rp_counter = 0;
-	state.imu_counter = 0;
 	fasttrig_init();
 	vx_global_init();
 	
@@ -392,47 +327,6 @@ int Maebot_View::start (int argc, char** argv)
 	gdk_threads_init();
 	gdk_threads_enter();
 	gtk_init(&argc, &argv);
-	
-	state.bot = matd_create(3,1); // [x][y][theta]
-	imu_state.bot = matd_create(3,2);
-	imu_state.prev_time = 0.0;
-	
-	state.motor_lcm = lcm_create (NULL);
-	if(!state.motor_lcm)
-		return 1;
-	
-	state.lidar_lcm = lcm_create(NULL);
-	if(!state.lidar_lcm)
-		return 1;
-
-	state.imu_lcm = lcm_create(NULL);
-	if(!state.imu_lcm)
-		return 1;
-	
-	maebot_motor_feedback_t_subscribe (state.motor_lcm,
-		"MAEBOT_MOTOR_FEEDBACK",
-		motor_feedback_handler,
-		NULL);
-	
-	maebot_laser_scan_t_subscribe (state.lidar_lcm,
-		"MAEBOT_LASER_SCAN",
-		rplidar_feedback_handler,
-		NULL);
-
-	maebot_sensor_data_t_subscribe (state.imu_lcm,
-		"MAEBOT_SENSOR_DATA",
-		sensor_data_handler,
-		NULL);
-
-
-
-	state.occupancy_grid_lcm.subscribeFunction("OCCUPANCY_GRID", occupancy_grid_handler, (void*) NULL);
-
-	pthread_t lcm_lidar_thread, lcm_motor_thread, lcm_imu_thread, lcm_occupancy_grid_thread;
-	pthread_create(&lcm_motor_thread, NULL, lcm_motor_handler, (void*)(&state));
-	pthread_create(&lcm_lidar_thread, NULL, lcm_lidar_handler, (void*)(&state));
-	pthread_create(&lcm_imu_thread, NULL, lcm_imu_handler, (void*)(&state));
-	pthread_create(&lcm_occupancy_grid_thread, NULL, lcm_occupancy_grid_handler, (void*)(&state));
 
 	vx_gtk_display_source_t * appwrap = vx_gtk_display_source_create(&app);
 	GtkWidget * window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
@@ -443,9 +337,10 @@ int Maebot_View::start (int argc, char** argv)
 	gtk_widget_show (canvas); // XXX Show all causes errors!
 	
 	g_signal_connect_swapped(G_OBJECT(window), "destroy", G_CALLBACK(gtk_main_quit), NULL);
-	
 
-	
+    pthread_t lcm_handler_thread;
+    pthread_create(&lcm_handler_thread, NULL, lcm_handler, (void*)(&state));
+
 	gtk_main (); // Blocks as long as GTK window is open
 	gdk_threads_leave ();
 	
