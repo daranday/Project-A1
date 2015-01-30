@@ -8,6 +8,7 @@ State state;
 Odo_state odo_state;
 IMU_State imu_state;
 Occupancy_Grid_State occupancy_grid_state;
+Pose_state_t pose_state;
 
 using namespace std;
 
@@ -28,6 +29,7 @@ void rotate_matrix_z(float* x, float* y, float theta)
 
 void rplidar_feedback_handler(const lcm::ReceiveBuffer* rbuf, const std::string& channel, const maebot_laser_scan_t *scan, void *user)
 {
+    cout << "hellolidar" << endl;
    	// printf("Handling rplidar\n");
 
    	int i, npoints;
@@ -63,10 +65,13 @@ void rplidar_feedback_handler(const lcm::ReceiveBuffer* rbuf, const std::string&
 		vx_buffer_add_back(mybuf, line);
 	}
 	vx_buffer_swap(mybuf);
+    cout << "byelidar" << endl;
+
 }
 
 void motor_feedback_handler (const lcm::ReceiveBuffer* rbuf, const std::string& channel, const maebot_motor_feedback_t *msg, void *user)
 {
+    cout << "hellomotor" << endl;
 	// int res = system ("clear");
 	// if (res)
 	// 	printf ("system clear failed\n");
@@ -110,20 +115,21 @@ void motor_feedback_handler (const lcm::ReceiveBuffer* rbuf, const std::string& 
 		odo_state.right = msg->encoder_right_ticks;
 
 
-		// Update Vx World
-		char odo_buffer[32];
-		float current_position[3] = {state.scale * (float)state.bot.x, state.scale * (float)state.bot.y, 0.0};
-		sprintf(odo_buffer, "odo%d", state.odo_counter++);
+		// // Update Vx World
+		// char odo_buffer[32];
+		// float current_position[3] = {state.scale * (float)state.bot.x, state.scale * (float)state.bot.y, 0.0};
+		// sprintf(odo_buffer, "odo%d", state.odo_counter++);
 
-		vx_resc_t *one_point = vx_resc_copyf(current_position,3);
-		vx_buffer_t *buf = vx_world_get_buffer(vx_state.world, odo_buffer);
-		vx_object_t *trace = vxo_points(one_point, 1, vxo_points_style(vx_red, 2.0f)); 
-		// vxo_chain(vxo_mat_translate3(state.bot.x, state.bot.y, 0.0),
-		// vxo_points(one_point, 1, vxo_points_style(vx_red, 2.0f)));
-		vx_buffer_add_back(buf, trace);
-		vx_buffer_swap(buf);
+		// vx_resc_t *one_point = vx_resc_copyf(current_position,3);
+		// vx_buffer_t *buf = vx_world_get_buffer(vx_state.world, odo_buffer);
+		// vx_object_t *trace = vxo_points(one_point, 1, vxo_points_style(vx_red, 2.0f)); 
+		// // vxo_chain(vxo_mat_translate3(state.bot.x, state.bot.y, 0.0),
+		// // vxo_points(one_point, 1, vxo_points_style(vx_red, 2.0f)));
+		// vx_buffer_add_back(buf, trace);
+		// vx_buffer_swap(buf);
 	}
 	odo_state.last_updated = msg->utime;
+    cout << "byemotor" << endl;
 }
 
 void sensor_data_handler (const lcm::ReceiveBuffer* rbuf, const std::string& channel, const maebot_sensor_data_t *msg, void *user)
@@ -213,6 +219,7 @@ void sensor_data_handler (const lcm::ReceiveBuffer* rbuf, const std::string& cha
 
 void occupancy_grid_handler(const lcm::ReceiveBuffer* rbuf, const std::string& channel, const maebot_occupancy_grid_t* msg, void* user) 
 {
+	cout << "hellogrid" << endl;
 	occupancy_grid_state.grid.fromLCM(*msg);
 
 	int w = occupancy_grid_state.grid.widthInCells();
@@ -251,6 +258,7 @@ void occupancy_grid_handler(const lcm::ReceiveBuffer* rbuf, const std::string& c
 		printf("Error converting to image");
 	}
 	image_u8_destroy(im);
+	cout << "byegrid" << endl;
 }
 
 

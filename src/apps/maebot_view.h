@@ -102,6 +102,17 @@ struct Odo_state{
 
 extern Odo_state odo_state;
 
+struct Pose_state_t : Pose_t {
+  float v_x;
+  float v_y;
+  float v_theta;
+
+  int64_t last_updated;
+  Pose_state_t() : Pose_t(), last_updated(0) {}
+};
+
+extern Pose_state_t pose_state;
+
 struct IMU_State {
   matd_t *bot; // 3x2 state [x, Vx][y, Vy][theta, Vtheta]
   int64_t prev_time;
