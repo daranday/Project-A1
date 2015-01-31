@@ -92,7 +92,7 @@ void laser_update_grid_handler(const lcm::ReceiveBuffer* rbuf, const std::string
         float x, y;
         x = (scan->ranges[i]) * cosf(scan->thetas[i]);
         y = (scan->ranges[i]) * sinf(scan->thetas[i]);
-        rotate_matrix_z(&x, &y, pose_state.theta); + elapsed_time * pose_state.v_theta);
+        rotate_matrix_z(&x, &y, pose_state.theta + elapsed_time * pose_state.v_theta);
 
         plot_line[0] = state.scale * (pose_state.x + elapsed_time * pose_state.v_x);
         plot_line[1] = state.scale * (pose_state.y + elapsed_time * pose_state.v_y);
@@ -117,7 +117,7 @@ void laser_update_grid_handler(const lcm::ReceiveBuffer* rbuf, const std::string
 
         
         vx_resc_t *verts = vx_resc_copyf(plot_line, 2 * 2);
-        vx_object_t *line = vxo_lines(verts, 2, GL_LINES, vxo_points_style(counts < 290/3 ? vx_red : counts < 290*2/3 ? vx_purple : vx_yellow, 2.0f));
+        vx_object_t *line = vxo_lines(verts, 2, GL_LINES, vxo_points_style(counts < 290/3 ? vx_green : counts < 290*2/3 ? vx_blue : vx_yellow, 2.0f));
         vx_buffer_add_back(mybuf, line);
         counts++;
 
@@ -158,8 +158,8 @@ void pose_handler(const lcm::ReceiveBuffer* rbuf, const std::string& channel, co
 
     // Update Vx World
     char odo_buffer[32];
-    float current_position[3] = {state.scale * (float)pose_state.x, state.scale * (float)pose_state.y, 0.0};
-    // sprintf(odo_buffer, "odo%d", state.odo_counter++);
+    float current_position[3] = {state.scale * (float)pose_state.x, state.scale * (float)pose_state.y, 0.05};
+    sprintf(odo_buffer, "odo%d", state.odo_counter++);
 
     vx_resc_t *one_point = vx_resc_copyf(current_position,3);
     vx_buffer_t *buf = vx_world_get_buffer(vx_state.world, odo_buffer);
