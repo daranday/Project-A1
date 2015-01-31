@@ -32,40 +32,40 @@ void rplidar_feedback_handler(const lcm::ReceiveBuffer* rbuf, const std::string&
     // cout << "hellolidar" << endl;
    	// printf("Handling rplidar\n");
 
- //   	int i, npoints;
-	// float single_line[6]; // x1, y1, z1, x2, y2, z2
-	// const float* colors[4] = {vx_blue, vx_purple, vx_orange, vx_yellow};
+   	int i, npoints;
+	float single_line[6]; // x1, y1, z1, x2, y2, z2
+	const float* colors[4] = {vx_blue, vx_purple, vx_orange, vx_yellow};
 
-	// npoints = 2;
-	// single_line[0] = /*maebot starting x*/ state.scale * (state.bot.x);
-	// single_line[1] = /*maebot starting y*/ state.scale * (state.bot.y);
-	// // single_line[2] = /*maebot starting z*/ 0.0;
+	npoints = 2;
+	single_line[0] = /*maebot starting x*/ state.scale * (odo_state.x);
+	single_line[1] = /*maebot starting y*/ state.scale * (odo_state.y);
+	// single_line[2] = /*maebot starting z*/ 0.0;
 
-	// char rp_buffer[32];
-	// sprintf(rp_buffer, "rp%d", 0);
+	char rp_buffer[32];
+	sprintf(rp_buffer, "rp%d", 0);
 
-	// vx_buffer_t *mybuf = vx_world_get_buffer(vx_state.world, rp_buffer);
-	// //printf("\t%f\t%f\n", state.bot.x, state.bot.y);
+	vx_buffer_t *mybuf = vx_world_get_buffer(vx_state.world, rp_buffer);
+	//printf("\t%f\t%f\n", odo_state.x, odo_state.y);
 
 
-	// for(i = 0; i < scan->num_ranges; ++i){
-	// 	// currently centered around origin, will need to be centered around maebot position
-	// 	if(scan->intensities[i] <= 0)
-	// 		continue;
-	// 	float x, y;
-	// 	x = (state.scale * scan->ranges[i]) * cosf(scan->thetas[i]);
-	// 	y = (state.scale * scan->ranges[i]) * sinf(scan->thetas[i]);
-	// 	rotate_matrix_z(&x, &y, state.bot.theta);
-	// 	single_line[2] = single_line[0] + x;
-	// 	single_line[3] = single_line[1] - y;
-	// 	// single_line[5] = 0.0;
+	for(i = 0; i < scan->num_ranges; ++i){
+		// currently centered around origin, will need to be centered around maebot position
+		if(scan->intensities[i] <= 0)
+			continue;
+		float x, y;
+		x = (state.scale * scan->ranges[i]) * cosf(scan->thetas[i]);
+		y = (state.scale * scan->ranges[i]) * sinf(scan->thetas[i]);
+		rotate_matrix_z(&x, &y, odo_state.theta);
+		single_line[2] = single_line[0] + x;
+		single_line[3] = single_line[1] - y;
+		// single_line[5] = 0.0;
 		
-	// 	vx_resc_t *verts = vx_resc_copyf(single_line, npoints*2);
-	// 	vx_object_t *line = vxo_lines(verts, npoints, GL_LINES, vxo_points_style(colors[state.rp_counter % 4], 2.0f));
-	// 	vx_buffer_add_back(mybuf, line);
-	// }
-	// vx_buffer_swap(mybuf);
- //    // cout << "byelidar" << endl;
+		vx_resc_t *verts = vx_resc_copyf(single_line, npoints*2);
+		vx_object_t *line = vxo_lines(verts, npoints, GL_LINES, vxo_points_style(colors[state.rp_counter % 4], 2.0f));
+		vx_buffer_add_back(mybuf, line);
+	}
+	vx_buffer_swap(mybuf);
+    // cout << "byelidar" << endl;
 
 }
 
@@ -78,7 +78,7 @@ void motor_feedback_handler (const lcm::ReceiveBuffer* rbuf, const std::string& 
 	// printf("Handling motor\n");
 	
 	//update state
-	// state.bot = [x,y,theta]
+	// odo_state = [x,y,theta]
 	if(!odo_state.init){
 		odo_state.left = msg->encoder_left_ticks;
 		odo_state.right = msg->encoder_right_ticks;
@@ -91,17 +91,17 @@ void motor_feedback_handler (const lcm::ReceiveBuffer* rbuf, const std::string& 
 		float delta_s_r = (DISTANCE_TICK * delta_right);
 
 		float delta_s =(delta_s_l + delta_s_r)/2.0;
-		float delta_theta = (delta_s_r - delta_s_l)/WHEEL_BASE + state.bot.theta;
+		float delta_theta = (delta_s_r - delta_s_l)/WHEEL_BASE + odo_state.theta;
 		
 		if(delta_s < 0)
 			delta_s = delta_s*(-1.0);
 		
-		float delta_x = delta_s*fcos(delta_theta) + state.bot.x;
-		float delta_y = delta_s*fsin(delta_theta) + state.bot.y;
+		float delta_x = delta_s*fcos(delta_theta) + odo_state.x;
+		float delta_y = delta_s*fsin(delta_theta) + odo_state.y;
 
-		state.bot.x = delta_x;
-		state.bot.y = delta_y;
-		state.bot.theta = delta_theta;
+		odo_state.x = delta_x;
+		odo_state.y = delta_y;
+		odo_state.theta = delta_theta;
 
 		float left_speed = msg->motor_left_actual_speed;
 		float right_speed = msg->motor_right_actual_speed;
@@ -117,13 +117,13 @@ void motor_feedback_handler (const lcm::ReceiveBuffer* rbuf, const std::string& 
 
 		// // Update Vx World
 		// char odo_buffer[32];
-		// float current_position[3] = {state.scale * (float)state.bot.x, state.scale * (float)state.bot.y, 0.0};
+		// float current_position[3] = {state.scale * (float)odo_state.x, state.scale * (float)odo_state.y, 0.0};
 		// sprintf(odo_buffer, "odo%d", state.odo_counter++);
 
 		// vx_resc_t *one_point = vx_resc_copyf(current_position,3);
 		// vx_buffer_t *buf = vx_world_get_buffer(vx_state.world, odo_buffer);
 		// vx_object_t *trace = vxo_points(one_point, 1, vxo_points_style(vx_red, 2.0f)); 
-		// // vxo_chain(vxo_mat_translate3(state.bot.x, state.bot.y, 0.0),
+		// // vxo_chain(vxo_mat_translate3(odo_state.x, odo_state.y, 0.0),
 		// // vxo_points(one_point, 1, vxo_points_style(vx_red, 2.0f)));
 		// vx_buffer_add_back(buf, trace);
 		// vx_buffer_swap(buf);
@@ -197,7 +197,7 @@ void sensor_data_handler (const lcm::ReceiveBuffer* rbuf, const std::string& cha
 
   }
 
-  //printf("%f\t\t%f\t\t%f\n", state.bot.x, state.bot.y, state.bot.theta);
+  //printf("%f\t\t%f\t\t%f\n", odo_state.x, odo_state.y, odo_state.theta);
   //printf("%f\t%f\t\t%f\n", matd_get(imu_state.bot, 0, 0), matd_get(imu_state.bot, 1, 0), matd_get(imu_state.bot, 2, 0));
   
 

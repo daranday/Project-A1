@@ -68,40 +68,6 @@ struct Pose_t {
   Pose_t() :x(0), y(0), theta(0) {}
 };
 
-struct State{
-  lcm::LCM lcm;
-	
-	Pose_t bot; // 3x1 state [x][y][theta]
-
-	int odo_counter;
-	int rp_counter;
-	int imu_counter;
-
-  pthread_mutex_t state_lock;
-
-  float scale;
-
-  State() :odo_counter(0), rp_counter(0), imu_counter(0), scale(8.0){}
-};
-
-extern State state;
-
-//previous odometry reading
-struct Odo_state{
-	int32_t left;
-	int32_t right;
-	int8_t init;
-
-	float v_x;
-	float v_y;
-	float v_theta;
-
-	int64_t last_updated;
-  pthread_mutex_t odo_lock;
-};
-
-extern Odo_state odo_state;
-
 struct Pose_state_t : Pose_t {
   float v_x;
   float v_y;
@@ -112,6 +78,33 @@ struct Pose_state_t : Pose_t {
 };
 
 extern Pose_state_t pose_state;
+
+struct State{
+    lcm::LCM lcm;
+
+	int odo_counter;
+	int rp_counter;
+	int imu_counter;
+
+    pthread_mutex_t state_lock;
+
+    float scale;
+
+    State() :odo_counter(0), rp_counter(0), imu_counter(0), scale(8.0){}
+};
+
+extern State state;
+
+//previous odometry reading
+struct Odo_state : Pose_state_t{
+	int32_t left;
+	int32_t right;
+	int8_t init;
+
+    pthread_mutex_t odo_lock;
+};
+
+extern Odo_state odo_state;
 
 struct IMU_State {
   matd_t *bot; // 3x2 state [x, Vx][y, Vy][theta, Vtheta]
