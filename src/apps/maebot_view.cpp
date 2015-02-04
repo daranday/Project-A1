@@ -1,6 +1,7 @@
 #include "maebot_view.h"
 
 #include <string>
+#include <fstream>
 
 // Variable definition for states
 vx_state_t vx_state;
@@ -282,7 +283,22 @@ void occupancy_grid_handler(const lcm::ReceiveBuffer* rbuf, const std::string& c
 void* lcm_handler(void *args)
 {
 	while(1){
-		state.lcm.handle();
+		int c;
+		if ((c = state.lcm.handleTimeout(500)) <= 0) {
+			ofstream fout("/home/daranday/Michigan/eecs467/grid_map.txt" , std::ofstream::out);
+			cout << "FILE WRITTEN!" << endl;
+			fout << (int)grid_width_c << " " << (int)grid_height_c << " " << cell_sides_width_c << endl;
+			fout << occupancy_grid_state.grid.widthInCells() << " " << occupancy_grid_state.grid.heightInCells() << endl;
+			for (int i = 0; i < occupancy_grid_state.grid.heightInCells(); ++i) {
+				for (int j = 0; j < occupancy_grid_state.grid.widthInCells(); ++j)
+					fout << (int)occupancy_grid_state.grid(j, i) << " ";
+				fout << endl;
+				
+			}
+			fout.close();
+			exit(0);
+		}
+		cout << "NOT WRITING FILE, c = " << c << endl;
 	}
 	return NULL;
 }
