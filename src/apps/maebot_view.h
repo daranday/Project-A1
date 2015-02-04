@@ -6,6 +6,7 @@
 #include <inttypes.h>
 #include <math.h>
 #include <pthread.h>
+#include <vector>
 
 #include <lcm/lcm-cpp.hpp>
 #include <lcm/lcm.h>
@@ -16,7 +17,7 @@
 #include "lcmtypes/maebot_pose_t.hpp"
 #include "../math/matd.h"
 #include "../math/fasttrig.h"
-
+#include "../math/angle_functions.hpp"
 
 #include <gtk/gtk.h>
 #include "vx/vxo_drawables.h"
@@ -106,6 +107,25 @@ struct Odo_state : Pose_state_t{
 
 extern Odo_state odo_state;
 
+struct Action_state {
+    float prev_x;
+    float prev_y;
+    float prev_theta;
+
+    float alpha;
+    float s;
+    float phi;
+
+    int64_t cur_time;
+};
+
+extern Action_state action_state;
+
+
+
+
+
+
 struct IMU_State {
   matd_t *bot; // 3x2 state [x, Vx][y, Vy][theta, Vtheta]
   int64_t prev_time;
@@ -139,6 +159,19 @@ struct Occupancy_Grid_State {
 };
 
 extern Occupancy_Grid_State occupancy_grid_state;
+
+struct Probability_Grid_State {
+    std::vector< std::vector<float> > prob_grid;
+    Probability_Grid_State(){
+        prob_grid.resize(grid_width_c);
+        for (int i = 0; i < grid_width_c; ++i) {
+            prob_grid[i].resize(grid_height_c);
+        }
+    }
+    ~Probability_Grid_State() {}
+};
+
+extern Probability_Grid_State probability_grid_state;
 
 struct obj_data_t{
 	vx_object_t *obj;

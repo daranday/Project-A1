@@ -9,6 +9,7 @@ Odo_state odo_state;
 IMU_State imu_state;
 Occupancy_Grid_State occupancy_grid_state;
 Pose_state_t pose_state;
+Action_state action_state;
 
 using namespace std;
 
@@ -83,7 +84,20 @@ void motor_feedback_handler (const lcm::ReceiveBuffer* rbuf, const std::string& 
 		odo_state.left = msg->encoder_left_ticks;
 		odo_state.right = msg->encoder_right_ticks;
 		odo_state.init = 1;
+
+        // Init the Action_state
+        action_state.prev_x = 0;
+        action_state.prev_y = 0;
+        action_state.prev_theta = 0;
+
 	} else{
+        action_state.prev_x = odo_state.x;
+        action_state.prev_y = odo_state.y;
+        action_state.prev_theta = odo_state.theta;
+
+
+
+
 		int delta_left = msg->encoder_left_ticks - odo_state.left;
 		int delta_right = msg->encoder_right_ticks - odo_state.right;
 		
@@ -127,6 +141,21 @@ void motor_feedback_handler (const lcm::ReceiveBuffer* rbuf, const std::string& 
 		// // vxo_points(one_point, 1, vxo_points_style(vx_red, 2.0f)));
 		// vx_buffer_add_back(buf, trace);
 		// vx_buffer_swap(buf);
+
+
+
+
+
+
+
+
+
+        delta_x = odo_state.x - action_state.prev_x;
+        delta_y = odo_state.y - action_state.prev_y;
+        action_state.alpha = eecs467::angle_diff(atan2(delta_y, delta_x), action_state.prev_theta);
+        action_state.s = sqrt((delta_x)*(delta_x) + (delta_y)*(delta_y));
+        action_state.phi = eecs467::angle_diff(odo_state.theta, action_state.prev_theta);
+        action_state.cur_time = msg->utime;
 	}
 	odo_state.last_updated = msg->utime;
     // cout << "byemotor" << endl;
