@@ -5,7 +5,7 @@
 #include <fstream>
 #include <map>
 #include "../math/point.hpp"
-
+#include <random>
 
 #include "../mapping/occupancy_grid_utils.hpp"
 
@@ -17,6 +17,107 @@ const float p1_cell_sides_width_c = 0.05;
 
 typedef eecs467::Point<int> IntPoint;
 typedef eecs467::Point<double> DoublePoint;
+
+
+struct Particle_Tuple {
+    Pose_t pose;
+    float weight;
+    Particle_Tuple() {
+        weight = 0;
+    }
+    Particle_Tuple (float x_in, float y_in, float theta_in, float weight_in) {
+        pose.x = x_in;
+        pose.y = y_in;
+        pose.theta = theta_in;
+        weight = weight_in;
+    }
+    void set (float x_in, float y_in, float theta_in, float weight_in) {
+        pose.x = x_in;
+        pose.y = y_in;
+        pose.theta = theta_in;
+        weight = weight_in;
+    }
+};
+const int NUM_PARTICLE = 1000;
+const int GREY_THRESH = 85;
+const int WHITE_THRESH = 170;
+vector< Particle_Tuple > particles;
+
+
+void initialize_particle () {
+    int max_x_grid = occupancy_grid_state.grid.widthInCells(), max_y_grid = occupancy_grid_state.grid.heightInCells();
+
+    int min_x = 0, max_x = max_x_grid - 1, min_y = 0, max_y = max_y_grid - 1;
+
+    bool done = false;
+    for (int y = 0; y < max_y_grid && !done; ++y) {
+        for (int x = 0; x < max_x_grid && !done; ++x) {
+            if (occupancy_grid_state.grid(x, y) > WHITE_THRESH) {
+                min_x = x;
+                done = true;
+            }
+        }
+    }
+    if (!done) {
+        cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>ERROR, can't find a reliable free grid" << endl;
+        return;
+    }
+    done = false;
+    for (int y = max_y_grid-1 y >= 0 && !done; --y) {
+        for (int x = 0; x < max_x_grid && !done; ++x) {
+            if (occupancy_grid_state.grid(x, y) > WHITE_THRESH) {
+                max_x = x;
+                done = true;
+            }
+        }
+    }
+    done = false;
+    for (int x = 0; x < max_x_grid && !done; ++x) {
+        for (int y = 0; y < max_y_grid && !done; ++y) {
+            if (occupancy_grid_state.grid(x, y) > WHITE_THRESH) {
+                min_y = y;
+                done = true;
+            }
+        }
+    }
+    done = false;
+    for (int x = max_x_grid-1 x >= 0 && !done; --x) {
+        for (int y = 0; y < max_y_grid && !done; ++y) {
+            if (occupancy_grid_state.grid(x, y) > WHITE_THRESH) {
+                max_y = y;
+                done = true;
+            }
+        }
+    }
+
+    uniform_real_distribution<double> dist_x(min_x,max_x);
+    uniform_real_distribution<double> dist_y(min_y,max_y);
+    default_random_engine re;
+    double rand_x;
+    double rand_y;
+    while (particles.size() != NUM_PARTICLE) {
+        rand_x = dist_x(re);
+        rand_y = dist_y(re);
+        if (occupancy_grid_state.grid(rand_x, rand_y) > WHITE_THRESH) {
+            particles.push_back(Particle_Tuple(rand_x, rand_y, 0, 1.0/NUM_PARTICLE));
+        }
+    }
+}
+
+// ################ make it pointer?? or make copy constructor ########################
+void sample (const vector< Particle_Tuple > & particles) {
+    double step = 1.0/NUM_PARTICLE;
+    double weight_sum = particles[0];
+    int index = 0;
+    vector< Particle_Tuple > sampled_particles;
+    for (double s = 0; s < 1; s+=step) {
+        while (weight_sum <= s) {
+            weight_sum += particles[++index].weight;
+        }
+        sampled_particles.push_back(particles[index]);
+    }
+}
+
 
 void raytrace(double x0, double y0, double x1, double y1)
 {
@@ -184,18 +285,18 @@ void* grid_broadcast_generator(void* args) {
 
 void init_main_handlers() {
     state.lcm.subscribeFunction("MAEBOT_MOTOR_FEEDBACK", motor_feedback_handler, (void*) NULL);
-    // state.lcm.subscribeFunction("MAEBOT_LASER_SCAN", rplidar_feedback_handler, (void*) NULL);
-    state.lcm.subscribeFunction("MAEBOT_SENSOR_DATA", sensor_data_handler, (void*) NULL);
+    state.lcm.subscribeFunction("MAEBOT_LASER_SCAN", rplidar_feedback_handler, (void*) NULL);
+    // state.lcm.subscribeFunction("MAEBOT_SENSOR_DATA", sensor_data_handler, (void*) NULL);
     state.lcm.subscribeFunction("OCCUPANCY_GRID", occupancy_grid_handler, (void*) NULL);
-    state.lcm.subscribeFunction("MAEBOT_LASER_SCAN", laser_update_grid_handler, (void*) NULL);
-    state.lcm.subscribeFunction("MAEBOT_POSE", pose_handler, (void*) NULL);
+    // state.lcm.subscribeFunction("MAEBOT_LASER_SCAN", laser_update_grid_handler, (void*) NULL);
+    // state.lcm.subscribeFunction("MAEBOT_POSE", pose_handler, (void*) NULL);
 }
 
 int main(int argc, char** argv) {
     init_main_handlers();
 
-    pthread_t grid_broadcast_thread;
-    pthread_create(&grid_broadcast_thread, NULL, grid_broadcast_generator, (void*)NULL);
+    //pthread_t grid_broadcast_thread;
+    //pthread_create(&grid_broadcast_thread, NULL, grid_broadcast_generator, (void*)NULL);
 
     Maebot_View maebot_world;
     maebot_world.start(argc, argv);

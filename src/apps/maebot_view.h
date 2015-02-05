@@ -159,20 +159,13 @@ struct Occupancy_Grid_State {
 };
 
 extern Occupancy_Grid_State occupancy_grid_state;
-
-struct Probability_Grid_State {
-    std::vector< std::vector<float> > prob_grid;
-    Probability_Grid_State(){
-        prob_grid.resize(grid_width_c);
-        for (int i = 0; i < grid_width_c; ++i) {
-            prob_grid[i].resize(grid_height_c);
-        }
-    }
-    ~Probability_Grid_State() {}
+/*
+struct Particle_State {
+    std::set< > particle;
 };
 
-extern Probability_Grid_State probability_grid_state;
-
+extern Particle_State particle_state;
+*/
 struct obj_data_t{
 	vx_object_t *obj;
 	char *name;
