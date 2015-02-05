@@ -108,10 +108,6 @@ struct Odo_state : Pose_state_t{
 extern Odo_state odo_state;
 
 struct Action_state {
-    float prev_x;
-    float prev_y;
-    float prev_theta;
-
     float alpha;
     float s;
     float phi;

@@ -85,15 +85,10 @@ void motor_feedback_handler (const lcm::ReceiveBuffer* rbuf, const std::string& 
 		odo_state.right = msg->encoder_right_ticks;
 		odo_state.init = 1;
 
-        // Init the Action_state
-        action_state.prev_x = 0;
-        action_state.prev_y = 0;
-        action_state.prev_theta = 0;
-
 	} else{
-        action_state.prev_x = odo_state.x;
-        action_state.prev_y = odo_state.y;
-        action_state.prev_theta = odo_state.theta;
+        float prev_x = odo_state.x;
+        float prev_y = odo_state.y;
+        float prev_theta = odo_state.theta;
 
 
 
@@ -143,18 +138,11 @@ void motor_feedback_handler (const lcm::ReceiveBuffer* rbuf, const std::string& 
 		// vx_buffer_swap(buf);
 
 
-
-
-
-
-
-
-
-        delta_x = odo_state.x - action_state.prev_x;
-        delta_y = odo_state.y - action_state.prev_y;
-        action_state.alpha = eecs467::angle_diff(atan2(delta_y, delta_x), action_state.prev_theta);
+        delta_x = odo_state.x - prev_x;
+        delta_y = odo_state.y - prev_y;
+        action_state.alpha = eecs467::angle_diff(atan2(delta_y, delta_x), prev_theta);
         action_state.s = sqrt((delta_x)*(delta_x) + (delta_y)*(delta_y));
-        action_state.phi = eecs467::angle_diff(odo_state.theta, action_state.prev_theta);
+        action_state.phi = eecs467::angle_diff(odo_state.theta, prev_theta);
         action_state.cur_time = msg->utime;
 	}
 	odo_state.last_updated = msg->utime;

@@ -292,8 +292,27 @@ void init_main_handlers() {
     // state.lcm.subscribeFunction("MAEBOT_POSE", pose_handler, (void*) NULL);
 }
 
+void read_map() {
+    float map_width, map_height, cell_side;
+    int grid_width, grid_height, cell_odds;
+    ifstream fin("/home/daranday/Michigan/eecs467/grid_map.txt");
+
+    fin >> map_width >> map_height >> cell_side;
+    fin >> grid_width >> grid_height;
+
+    occupancy_grid_state.grid = eecs467::OccupancyGrid(map_width, map_height, cell_side);
+    for (int i = 0; i < occupancy_grid_state.grid.heightInCells(); ++i) {
+        for (int j = 0; j < occupancy_grid_state.grid.widthInCells(); ++j) {
+            fin >> cell_odds;
+            occupancy_grid_state.grid(j, i) = (int8_t)cell_odds;
+        }
+    }
+    fin.close();
+}
+
 int main(int argc, char** argv) {
     init_main_handlers();
+    read_map();
 
     //pthread_t grid_broadcast_thread;
     //pthread_create(&grid_broadcast_thread, NULL, grid_broadcast_generator, (void*)NULL);
