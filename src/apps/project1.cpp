@@ -43,7 +43,7 @@ const int GREY_THRESH = 85;
 const int WHITE_THRESH = 170;
 vector< Particle_Tuple > particles;
 
-
+/*
 void initialize_particle () {
     int max_x_grid = occupancy_grid_state.grid.widthInCells(), max_y_grid = occupancy_grid_state.grid.heightInCells();
 
@@ -103,11 +103,18 @@ void initialize_particle () {
         }
     }
 }
+*/
+void initialize_particle () {
+    for (int i = 0; i < NUM_PARTICLE; ++i) {
+        particles.push_back(Particle_Tuple(0, 0, 0, 1.0/NUM_PARTICLE));
+    }
+}
 
 // ################ make it pointer?? or make copy constructor ########################
-void sample (const vector< Particle_Tuple > & particles) {
+// assume weight is positive
+vector< Particle_Tuple > sample (const vector< Particle_Tuple > & particles) {
     double step = 1.0/NUM_PARTICLE;
-    double weight_sum = particles[0];
+    double weight_sum = particles[0].weight;
     int index = 0;
     vector< Particle_Tuple > sampled_particles;
     for (double s = 0; s < 1; s+=step) {
@@ -116,6 +123,7 @@ void sample (const vector< Particle_Tuple > & particles) {
         }
         sampled_particles.push_back(particles[index]);
     }
+    return sampled_particles;
 }
 
 
