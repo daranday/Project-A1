@@ -11,6 +11,28 @@ struct Particle_t {
 const int NUM_PARTICLE = 1000;
 vector<Particle_t> particles(NUM_PARTICLE, Particle_t(0,0,0,1/num_particle));
 
+std::default_random_engine generator; // Returns unsigned int
+
+void action_model(Particle_t &next_particle) {
+    float alpha = action_state.alpha;
+    float s = action_state.s;
+    float phi = action_state.phi;
+
+    normal_distribution<float> e1_dist(0, 1.0 * alpha);
+    normal_distribution<float> e2_dist(0, 0.4 * s);
+    normal_distribution<float> e3_dist(0, 1.0 * (phi - alpha));
+
+    unsigned int gen_val = generator;
+
+    float e1 = e1_dist(gen_val);
+    float e2 = e2_dist(gen_val);
+    float e3 = e3_dist(gen_val);
+
+    next_particle.x += (s + e2)*cos(next_particle.theta + alpha + e1));
+    next_particle.y += (s + e2)*sin(next_particle.theta + alpha + e1));
+    next_particle.theta += phi + e1 + e3;
+}
+
 void particle_filter() {
     vector<Particle_t> new_particles(num_particle);
     
@@ -23,7 +45,7 @@ void particle_filter() {
     
     int64_t last_updated_time = action_model.last_updated;
     
-    for (unsigned int i = 0; i < particles.szie(); ++i) {
+    for (unsigned int i = 0; i < particles.size(); ++i) {
         // sampling
         while (weight_counter > sample_weight) {
             sample_weight += particles[sample_counter++].weight;
@@ -31,8 +53,8 @@ void particle_filter() {
         weight_counter += weight_step;
         Particle_t next_particle = particles[sample_counter];
         
-        next_particle = action_model();
-        
+        action_model(next_particle);
+         
         float new_weight = 0, elapsed_time = 0;
         
         for (unsigned int j = 0; j < scan->num_ranges; ++j) {
