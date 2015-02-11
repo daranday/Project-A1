@@ -19,96 +19,6 @@ typedef eecs467::Point<int> IntPoint;
 typedef eecs467::Point<double> DoublePoint;
 
 
-struct Particle_Tuple {
-    Pose_t pose;
-    float weight;
-    Particle_Tuple() {
-        weight = 0;
-    }
-    Particle_Tuple (float x_in, float y_in, float theta_in, float weight_in) {
-        pose.x = x_in;
-        pose.y = y_in;
-        pose.theta = theta_in;
-        weight = weight_in;
-    }
-    void set (float x_in, float y_in, float theta_in, float weight_in) {
-        pose.x = x_in;
-        pose.y = y_in;
-        pose.theta = theta_in;
-        weight = weight_in;
-    }
-};
-const int NUM_PARTICLE = 1000;
-const int GREY_THRESH = 85;
-const int WHITE_THRESH = 170;
-vector< Particle_Tuple > particles;
-
-/*
-void initialize_particle () {
-    int max_x_grid = occupancy_grid_state.grid.widthInCells(), max_y_grid = occupancy_grid_state.grid.heightInCells();
-
-    int min_x = 0, max_x = max_x_grid - 1, min_y = 0, max_y = max_y_grid - 1;
-
-    bool done = false;
-    for (int y = 0; y < max_y_grid && !done; ++y) {
-        for (int x = 0; x < max_x_grid && !done; ++x) {
-            if (occupancy_grid_state.grid(x, y) > WHITE_THRESH) {
-                min_x = x;
-                done = true;
-            }
-        }
-    }
-    if (!done) {
-        cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>ERROR, can't find a reliable free grid" << endl;
-        return;
-    }
-    done = false;
-    for (int y = max_y_grid-1 y >= 0 && !done; --y) {
-        for (int x = 0; x < max_x_grid && !done; ++x) {
-            if (occupancy_grid_state.grid(x, y) > WHITE_THRESH) {
-                max_x = x;
-                done = true;
-            }
-        }
-    }
-    done = false;
-    for (int x = 0; x < max_x_grid && !done; ++x) {
-        for (int y = 0; y < max_y_grid && !done; ++y) {
-            if (occupancy_grid_state.grid(x, y) > WHITE_THRESH) {
-                min_y = y;
-                done = true;
-            }
-        }
-    }
-    done = false;
-    for (int x = max_x_grid-1 x >= 0 && !done; --x) {
-        for (int y = 0; y < max_y_grid && !done; ++y) {
-            if (occupancy_grid_state.grid(x, y) > WHITE_THRESH) {
-                max_y = y;
-                done = true;
-            }
-        }
-    }
-
-    uniform_real_distribution<double> dist_x(min_x,max_x);
-    uniform_real_distribution<double> dist_y(min_y,max_y);
-    default_random_engine re;
-    double rand_x;
-    double rand_y;
-    while (particles.size() != NUM_PARTICLE) {
-        rand_x = dist_x(re);
-        rand_y = dist_y(re);
-        if (occupancy_grid_state.grid(rand_x, rand_y) > WHITE_THRESH) {
-            particles.push_back(Particle_Tuple(rand_x, rand_y, 0, 1.0/NUM_PARTICLE));
-        }
-    }
-}
-*/
-void initialize_particle () {
-    for (int i = 0; i < NUM_PARTICLE; ++i) {
-        particles.push_back(Particle_Tuple(0, 0, 0, 1.0/NUM_PARTICLE));
-    }
-}
 
 // ################ make it pointer?? or make copy constructor ########################
 // assume weight is positive
@@ -147,11 +57,11 @@ void raytrace(double x0, double y0, double x1, double y1)
         // visit(x, y);
 
         eecs467::Point<double> p(x, y);
-        eecs467::Point<int> cell = global_position_to_grid_cell(p,occupancy_grid_state.grid);
+        eecs467::Point<int> cell = global_position_to_grid_cell(p,state.grid);
         //cout << "cell.x: " << cell.x << "cell.y: " << cell.y << "(" << x << "," << y << ")" << endl;
         if (visited.find(cell) == visited.end()) {
-            if (occupancy_grid_state.grid(cell.x,cell.y) > -128) {       
-                occupancy_grid_state.grid(cell.x, cell.y)--;
+            if (state.grid(cell.x,cell.y) > -128) {       
+                state.grid(cell.x, cell.y)--;
             }
             visited[cell] = true;
         }
@@ -171,8 +81,8 @@ void raytrace(double x0, double y0, double x1, double y1)
 
     eecs467::Point<double> p(x1, y1);
 
-    eecs467::Point<int> cell = global_position_to_grid_cell(p,occupancy_grid_state.grid);
-    occupancy_grid_state.grid(cell.x, cell.y) = occupancy_grid_state.grid(cell.x, cell.y) <= 127 - 3 ? occupancy_grid_state.grid(cell.x, cell.y) + 3 : 127;
+    eecs467::Point<int> cell = global_position_to_grid_cell(p,state.grid);
+    state.grid(cell.x, cell.y) = state.grid(cell.x, cell.y) <= 127 - 3 ? state.grid(cell.x, cell.y) + 3 : 127;
 }
 
 void laser_update_grid_handler(const lcm::ReceiveBuffer* rbuf, const std::string& channel, const maebot_laser_scan_t *scan, void *user)
@@ -230,11 +140,6 @@ void laser_update_grid_handler(const lcm::ReceiveBuffer* rbuf, const std::string
         vx_buffer_add_back(mybuf, line);
         counts++;
 
-        // if (counts >= 10) {
-        //     vx_buffer_swap(mybuf);
-        //     mybuf = vx_world_get_buffer(vx_state.world, "Yellow Laser");
-        //     counts = 0;
-        // }
         raytrace(single_line[0], single_line[1], single_line[2], single_line[3]);
     }
     cout << "-----------" << counts << endl;
@@ -284,7 +189,7 @@ void pose_handler(const lcm::ReceiveBuffer* rbuf, const std::string& channel, co
 
 void* grid_broadcast_generator(void* args) {
     while(1) {
-        maebot_occupancy_grid_t new_grid_msg = occupancy_grid_state.grid.toLCM();
+        maebot_occupancy_grid_t new_grid_msg = state.grid.toLCM();
         state.lcm.publish("OCCUPANCY_GRID", &new_grid_msg);
         usleep(1000000);
     }
@@ -294,6 +199,9 @@ void* grid_broadcast_generator(void* args) {
 void init_main_handlers() {
     state.lcm.subscribeFunction("MAEBOT_MOTOR_FEEDBACK", motor_feedback_handler, (void*) NULL);
     state.lcm.subscribeFunction("MAEBOT_LASER_SCAN", rplidar_feedback_handler, (void*) NULL);
+    // task 2 
+    state.lcm.subscribeFunction("MAEBOT_MOTOR_FEEDBACK", action_model_updater, (void*) NULL);
+    state.lcm.subscribeFunction("MAEBOT_LASER_SCAN", sensor_model_updater, (void*) NULL);
     // state.lcm.subscribeFunction("MAEBOT_SENSOR_DATA", sensor_data_handler, (void*) NULL);
     state.lcm.subscribeFunction("OCCUPANCY_GRID", occupancy_grid_handler, (void*) NULL);
     // state.lcm.subscribeFunction("MAEBOT_LASER_SCAN", laser_update_grid_handler, (void*) NULL);
@@ -308,11 +216,11 @@ void read_map() {
     fin >> map_width >> map_height >> cell_side;
     fin >> grid_width >> grid_height;
 
-    occupancy_grid_state.grid = eecs467::OccupancyGrid(map_width, map_height, cell_side);
-    for (int i = 0; i < occupancy_grid_state.grid.heightInCells(); ++i) {
-        for (int j = 0; j < occupancy_grid_state.grid.widthInCells(); ++j) {
+    state.grid = eecs467::OccupancyGrid(map_width, map_height, cell_side);
+    for (int i = 0; i < state.grid.heightInCells(); ++i) {
+        for (int j = 0; j < state.grid.widthInCells(); ++j) {
             fin >> cell_odds;
-            occupancy_grid_state.grid(j, i) = (int8_t)cell_odds;
+            state.grid(j, i) = (int8_t)cell_odds;
         }
     }
     fin.close();

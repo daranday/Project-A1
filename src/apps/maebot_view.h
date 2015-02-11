@@ -81,17 +81,19 @@ struct Pose_state_t : Pose_t {
 extern Pose_state_t pose_state;
 
 struct State{
-    lcm::LCM lcm;
+  lcm::LCM lcm;
 
 	int odo_counter;
 	int rp_counter;
 	int imu_counter;
 
-    pthread_mutex_t state_lock;
+  pthread_mutex_t state_lock;
 
-    float scale;
+  float scale;
 
-    State() :odo_counter(0), rp_counter(0), imu_counter(0), scale(8.0){}
+  eecs467::OccupancyGrid grid;
+
+  State() :odo_counter(0), rp_counter(0), imu_counter(0), scale(8.0), grid(eecs467::OccupancyGrid(grid_width_c, grid_height_c, cell_sides_width_c)){}
 };
 
 extern State state;
@@ -102,7 +104,7 @@ struct Odo_state : Pose_state_t{
 	int32_t right;
 	int8_t init;
 
-    pthread_mutex_t odo_lock;
+  pthread_mutex_t odo_lock;
 };
 
 extern Odo_state odo_state;
@@ -112,7 +114,7 @@ struct Action_state {
     float s;
     float phi;
 
-    int64_t cur_time;
+    int64_t last_updated;
 };
 
 extern Action_state action_state;
@@ -149,8 +151,6 @@ struct IMU_State {
 extern IMU_State imu_state;
 
 struct Occupancy_Grid_State {
-    eecs467::OccupancyGrid grid;
-    Occupancy_Grid_State() : grid(eecs467::OccupancyGrid(grid_width_c, grid_height_c, cell_sides_width_c)){}
     ~Occupancy_Grid_State() {}
 };
 

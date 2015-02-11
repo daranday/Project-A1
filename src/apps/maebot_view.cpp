@@ -144,7 +144,7 @@ void motor_feedback_handler (const lcm::ReceiveBuffer* rbuf, const std::string& 
         action_state.alpha = eecs467::angle_diff(atan2(delta_y, delta_x), prev_theta);
         action_state.s = sqrt((delta_x)*(delta_x) + (delta_y)*(delta_y));
         action_state.phi = eecs467::angle_diff(odo_state.theta, prev_theta);
-        action_state.cur_time = msg->utime;
+        action_state.last_updated = msg->utime;
 	}
 	odo_state.last_updated = msg->utime;
     // cout << "byemotor" << endl;
@@ -238,10 +238,10 @@ void sensor_data_handler (const lcm::ReceiveBuffer* rbuf, const std::string& cha
 void occupancy_grid_handler(const lcm::ReceiveBuffer* rbuf, const std::string& channel, const maebot_occupancy_grid_t* msg, void* user) 
 {
 	// cout << "hellogrid" << endl;
-	occupancy_grid_state.grid.fromLCM(*msg);
+	state.grid.fromLCM(*msg);
 
-	int w = occupancy_grid_state.grid.widthInCells();
-	int h = occupancy_grid_state.grid.heightInCells();
+	int w = state.grid.widthInCells();
+	int h = state.grid.heightInCells();
 
 
 	image_u8_t *im = image_u8_create (w, h);
@@ -252,9 +252,9 @@ void occupancy_grid_handler(const lcm::ReceiveBuffer* rbuf, const std::string& c
 
 	for (int j = 0; j < h; ++j) {
 		for (int i = 0; i < w; ++i) {
-			im->buf[j*im->stride+i] = 127 - occupancy_grid_state.grid.logOdds(i,j);
+			im->buf[j*im->stride+i] = 127 - state.grid.logOdds(i,j);
             //std::cout << (int) im->buf[j*im->stride+i] << ",";
-            //std::cout << "buf[" << j*w+i << "]: " << occupancy_grid_state.grid.logOdds(i,j) << std::endl;
+            //std::cout << "buf[" << j*w+i << "]: " << state.grid.logOdds(i,j) << std::endl;
 		}
         //std::cout << std::endl;
 	}
@@ -266,10 +266,10 @@ void occupancy_grid_handler(const lcm::ReceiveBuffer* rbuf, const std::string& c
 
 		vx_buffer_t *vb = vx_world_get_buffer(vx_state.world, "map");
 		vx_buffer_add_back(vb, 	vxo_chain (
-									vxo_mat_translate3 (state.scale * occupancy_grid_state.grid.originInGlobalFrame().x, 
-														state.scale * occupancy_grid_state.grid.originInGlobalFrame().y, 
+									vxo_mat_translate3 (state.scale * state.grid.originInGlobalFrame().x, 
+														state.scale * state.grid.originInGlobalFrame().y, 
 														-0.001), 
-									vxo_mat_scale(state.scale * occupancy_grid_state.grid.metersPerCell()), vo));
+									vxo_mat_scale(state.scale * state.grid.metersPerCell()), vo));
 		vx_buffer_swap(vb);
 	}
 	else {
@@ -288,10 +288,10 @@ void* lcm_handler(void *args)
 			ofstream fout("/home/daranday/Michigan/eecs467/grid_map.txt" , std::ofstream::out);
 			cout << "FILE WRITTEN!" << endl;
 			fout << (int)grid_width_c << " " << (int)grid_height_c << " " << cell_sides_width_c << endl;
-			fout << occupancy_grid_state.grid.widthInCells() << " " << occupancy_grid_state.grid.heightInCells() << endl;
-			for (int i = 0; i < occupancy_grid_state.grid.heightInCells(); ++i) {
-				for (int j = 0; j < occupancy_grid_state.grid.widthInCells(); ++j)
-					fout << (int)occupancy_grid_state.grid(j, i) << " ";
+			fout << state.grid.widthInCells() << " " << state.grid.heightInCells() << endl;
+			for (int i = 0; i < state.grid.heightInCells(); ++i) {
+				for (int j = 0; j < state.grid.widthInCells(); ++j)
+					fout << (int)state.grid(j, i) << " ";
 				fout << endl;
 				
 			}
