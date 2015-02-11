@@ -19,7 +19,7 @@ typedef eecs467::Point<int> IntPoint;
 typedef eecs467::Point<double> DoublePoint;
 
 
-
+/*
 // ################ make it pointer?? or make copy constructor ########################
 // assume weight is positive
 vector< Particle_Tuple > sample (const vector< Particle_Tuple > & particles) {
@@ -35,7 +35,7 @@ vector< Particle_Tuple > sample (const vector< Particle_Tuple > & particles) {
     }
     return sampled_particles;
 }
-
+*/
 
 void raytrace(double x0, double y0, double x1, double y1)
 {
