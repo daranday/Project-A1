@@ -113,6 +113,7 @@ struct Action_state {
     float alpha;
     float s;
     float phi;
+    float cur_time;
 
     int64_t last_updated;
 };

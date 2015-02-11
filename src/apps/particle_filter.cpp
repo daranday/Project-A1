@@ -1,92 +1,46 @@
-#include "maebot_view.h"
+// #include "maebot_view.h"
 #include "particle_filter.h"
+#include "../math/angle_functions.hpp"
+#include "../math/gsl_util_rand.h"
 
-const int NUM_PARTICLE = 1000;
-const int GREY_THRESH = 85;
-const int WHITE_THRESH = 170;
-std::default_random_engine generator; // Returns unsigned int
+#include <vector>
 
-struct Particle_t {
-    float x;
-    float y;
-    float theta;
-    float weight;
-    Particle_t() :x(0), y(0), theta(0), weight(0) {}
-    Particle_t(float x_in, float y_in, float t_in, float w_in) : 
-                                        x(x_in), y(y_in), theta(t_in), weight(w_in) {}
-};
+using namespace std;
 
-vector<Particle_t> particles(NUM_PARTICLE, Particle_t(0,0,0,log(1.0/NUM_PARTICLE)));
+// const int NUM_PARTICLE = 1000;
+// const int GREY_THRESH = 85;
+// const int WHITE_THRESH = 170;
+//std::default_random_engine generator; // Returns unsigned int
 
-void action_model(Particle_t &next_particle) {
-    float alpha = action_state.alpha;
-    float s = action_state.s;
-    float phi = action_state.phi;
+// struct Particle_t {
+//     float x;
+//     float y;
+//     float theta;
+//     float weight;
+//     Particle_t() :x(0), y(0), theta(0), weight(0) {}
+//     Particle_t(float x_in, float y_in, float t_in, float w_in) : 
+//                                         x(x_in), y(y_in), theta(t_in), weight(w_in) {}
+// };
 
-    normal_distribution<float> e1_dist(0, 1.0 * alpha);
-    normal_distribution<float> e2_dist(0, 0.4 * s);
-    normal_distribution<float> e3_dist(0, 1.0 * (phi - alpha));
-
-    unsigned int gen_val = generator;
-
-    float e1 = e1_dist(gen_val);
-    float e2 = e2_dist(gen_val);
-    float e3 = e3_dist(gen_val);
-
-    next_particle.x += (s + e2)*cos(next_particle.theta + alpha + e1));
-    next_particle.y += (s + e2)*sin(next_particle.theta + alpha + e1));
-    next_particle.theta += phi + e1 + e3;
-}
+vector <Particle_t> particles(NUM_PARTICLE);
 
 /*
-void particle_filter() {
-    vector<Particle_t> new_particles(NUM_PARTICLE);
-    
-    float sample_weight = 0;
-    float weight_counter = 0;
-    int sample_counter = 0;
-    float weight_step = 1/NUM_PARTICLE;
-    
-    float total_weight = 0;
-    
-    int64_t last_updated_time = action_model.last_updated;
-    
-    for (unsigned int i = 0; i < particles.size(); ++i) {
-        // sampling
-        while (weight_counter > sample_weight) {
-            sample_weight += particles[sample_counter++].weight;
-        }
-        weight_counter += weight_step;
-        Particle_t next_particle = particles[sample_counter];
-        
-        action_model(next_particle);
-         
-        float new_weight = 0, elapsed_time = 0;
-        
-        
-        next_particle.weight = new_weight;
-        
-        total_weight == new_weight;
-        
-        new_particles[i] = next_particle;
+void init_particles() {
+    for (int i = 0; i < particles.size(); ++i) {
+        particles[i] = Particle_t();
     }
-    
-    for (Particle_t &p : particles) {
-        p.weight /= total_weight;
-    }
-    
-    particles = new_particles;
 }
 */
 
-void update_particle_weight(Particle_t& particle, DoublePoint& delta_r) {
-    DoublePoint laser_end_position = DoublePoint(particle.x + delta_r.x, particle.y + delta_r.y);
-    IntPoint laser_end_cell = eecs467::global_position_to_grid_cell(laser_end_position, state.grid)
 
-    if (state.grid.isCellInGrid(laser_end_cell)) {
-        if (state.grid(laser_end_cell) < 63) {
+void update_particle_weight(Particle_t& particle, DoublePoint& laser_end_position) {
+    //DoublePoint laser_end_position = DoublePoint(particle.x + delta_r.x, particle.y + delta_r.y);
+    IntPoint laser_end_cell = eecs467::global_position_to_grid_cell(laser_end_position, state.grid);
+
+    if (state.grid.isCellInGrid(laser_end_cell.x, laser_end_cell.y)) {
+        if (state.grid(laser_end_cell.x, laser_end_cell.y) < 63) {
             particle.weight -= -12;
-        } else if (state.grid(laser_end_cell) >= 64) {
+        } else if (state.grid(laser_end_cell.x, laser_end_cell.y) >= 64) {
             particle.weight -= -4;
         } else {
             particle.weight -= -8;
@@ -99,7 +53,13 @@ void update_particle_weight(Particle_t& particle, DoublePoint& delta_r) {
 
 void sensor_model_updater(const lcm::ReceiveBuffer* rbuf, const std::string& channel, const maebot_laser_scan_t *scan, void *user)
 {
+    cout << "doing sensor model" << endl;
+
     float max_weight = FLT_MIN; // minimum float nubmer
+
+    int counts = 0;
+    vx_buffer_t * mybuf = vx_world_get_buffer(vx_state.world, "Yellow Laser");
+    vx_buffer_t * mybuf2 = vx_world_get_buffer(vx_state.world, "current particle");
 
     for (int j = 0, len = particles.size(); j < len; ++j) {
         for(int i = 0; i < scan->num_ranges; ++i){
@@ -109,7 +69,7 @@ void sensor_model_updater(const lcm::ReceiveBuffer* rbuf, const std::string& cha
             float single_line[4], plot_line[4], elapsed_time; 
             float x, y;
             
-            elapsed_time = (scan->times[i] - last_updated_time) / 1000000.0
+            elapsed_time = (scan->times[i] - last_updated_time) / 1000000.0;
 
             x = (scan->ranges[i]) * cosf(scan->thetas[i]);
             y = (scan->ranges[i]) * sinf(scan->thetas[i]);
@@ -118,7 +78,7 @@ void sensor_model_updater(const lcm::ReceiveBuffer* rbuf, const std::string& cha
 
             // ######## use odostate theta don't consider the particle's theta ##########
             //rotate_matrix_z(&x, &y, eecs467::angle_sum(odo_state.theta, elapsed_time * odo_state.v_theta);
-            rotate_matrix_z(&x, &y, eecs467::angle_sum(particles[j].theta, elapsed_time * odo_state.v_theta);
+            rotate_matrix_z(&x, &y, eecs467::angle_sum(particles[j].theta, elapsed_time * odo_state.v_theta));
 
             // ######## use odostate position don't consider the particle's position ##########
             //single_line[0] = odo_state.x + elapsed_time * odo_state.v_x;
@@ -129,24 +89,53 @@ void sensor_model_updater(const lcm::ReceiveBuffer* rbuf, const std::string& cha
             single_line[2] = single_line[0] + x;
             single_line[3] = single_line[1] - y;
 
+            
+            plot_line[0] = state.scale * (particles[j].x + elapsed_time * odo_state.v_x);
+            plot_line[1] = state.scale * (particles[j].y + elapsed_time * odo_state.v_y);
+            plot_line[2] = plot_line[0] + state.scale * x;
+            plot_line[3] = plot_line[1] - state.scale * y;
+
             if (fabs(odo_state.v_theta) > 10 )
                 return;
 
             // update weight for particles
             
-            DoublePoint delta_r(single_line[2] - single_line[0], single_line[3] - single_line[1])
-            update_particle_weight(particles[j], delta_r);
+            vx_resc_t *verts = vx_resc_copyf(plot_line, 2 * 2);
+            vx_object_t *line = vxo_lines(verts, 2, GL_LINES, vxo_points_style(counts < 290/3 ? vx_green : counts < 290*2/3 ? vx_blue : vx_yellow, 2.0f));
+            vx_buffer_add_back(mybuf, line);
+            counts++;
+            
+            //DoublePoint delta_r(single_line[2] - single_line[0], single_line[3] - single_line[1]);
+            DoublePoint laser_end_position(single_line[2], single_line[3]);
+            
+            update_particle_weight(particles[j], laser_end_position);
 
         }
         if (particles[j].weight > max_weight) {
             max_weight = particles[j].weight;
         }
+
+        vx_buffer_swap(mybuf);
+
+        
+        float current_position[3] = {state.scale * (float)particles[j].x, state.scale * (float)particles[j].y, 0.05};
+        vx_resc_t *one_point = vx_resc_copyf(current_position,3);
+        vx_object_t *trace = vxo_points(one_point, 1, vxo_points_style(vx_red, 2.0f)); 
+        // vxo_chain(vxo_mat_translate3(state.bot.x, state.bot.y, 0.0),
+        // vxo_points(one_point, 1, vxo_points_style(vx_red, 2.0f)));
+        vx_buffer_add_back(mybuf2, trace);
+    }
+    vx_buffer_swap(mybuf2);
+
+    cout << "before normalize" << endl;
+    for (int i = 0; i < NUM_PARTICLE; ++i) {
+        cout << particles[i].x << "," << particles[i].y << ","<< particles[i].theta << "," << particles[i].weight << endl;
     }
 
     //normalize
     float weight_sum = 0;
     for (int j = 0, len = particles.size(); j < len; ++j) {
-        float norm_weight = pow (10, particles[j].weight + max_weight); // assume log base 10
+        float norm_weight = pow (10, particles[j].weight - max_weight); // assume log base 10
 
         particles[j].weight = norm_weight;
         weight_sum += norm_weight;
@@ -156,10 +145,17 @@ void sensor_model_updater(const lcm::ReceiveBuffer* rbuf, const std::string& cha
         particles[j].weight /= weight_sum;
     }
 
+    cout << "after normalize" << endl;
+    for (int i = 0; i < NUM_PARTICLE; ++i) {
+        cout << particles[i].x << "," << particles[i].y << ","<< particles[i].theta << "," << particles[i].weight << endl;
+    }
+
 }
 
 void action_model_updater (const lcm::ReceiveBuffer* rbuf, const std::string& channel, const maebot_motor_feedback_t *msg, void *user)
 {
+    cout << "doing action model" << endl;
+
     float prev_x = odo_state.x;
     float prev_y = odo_state.y;
     float prev_theta = odo_state.theta;
@@ -224,12 +220,26 @@ void action_model_updater (const lcm::ReceiveBuffer* rbuf, const std::string& ch
     double step_sum = step/2;
     int index = 0;
     for (int i = 0; i < NUM_PARTICLE; ++i) {
+        //cout << "before weight_sum " << weight_sum << " step_sum " << step_sum << " index " << index << " i " << i << endl;
+    
         while (weight_sum <= step_sum) {
+            //cout << " particles[index].weight " << particles[index].weight << endl;
+
             weight_sum += particles[++index].weight;
         }
         sampled_particles[i] = index;
         step_sum += step;
+
+        //cout << "weight_sum " << weight_sum << " step_sum " << step_sum << " index " << index << " i " << i << endl;
+    
     }
+
+/*
+    for (int i = 0; i < NUM_PARTICLE; ++i) {
+        cout << particles[i].x << "," << particles[i].y << ","<< particles[i].theta << "," << particles[i].weight << endl;
+        cout << "sample : " << sampled_particles[i] << endl;
+    }
+*/
 
     // update
     gsl_rng * rng = gslu_rand_rng_alloc();
@@ -252,6 +262,25 @@ void action_model_updater (const lcm::ReceiveBuffer* rbuf, const std::string& ch
         particles[i].theta = eecs467::angle_sum(eecs467::angle_sum(theta_e1, phi), e3);
     }
     delete rng;
+
+    // float current_position[3] = {state.scale * (float)pose_state.x, state.scale * (float)pose_state.y, 0.05};
+    vx_buffer_t *buf = vx_world_get_buffer(vx_state.world, "particles");
+
+    for (int i = 0; i < particles.size(); i++) {
+        float current_position[3] = {state.scale * (float)particles[i].x, state.scale * (float)particles[i].y, 0.05};
+        
+        //cout << current_position[0]  << "," << current_position[1]  <<"," <<current_position[2] << "|";
+
+        vx_resc_t *one_point = vx_resc_copyf(current_position,3);
+        vx_object_t *trace = vxo_points(one_point, 1, vxo_points_style(vx_red, 2.0f));
+        vx_buffer_add_back(buf, trace);
+
+    }
+    //cout << endl;
+    // vxo_chain(vxo_mat_translate3(state.bot.x, state.bot.y, 0.0),
+    // vxo_points(one_point, 1, vxo_points_style(vx_red, 2.0f)));
+    // vx_buffer_add_back(buf, trace);
+    vx_buffer_swap(buf);
 }
 
 /*

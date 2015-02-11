@@ -1,7 +1,6 @@
 #include "maebot_view.h"
 
 #include <string>
-#include <fstream>
 
 // Variable definition for states
 vx_state_t vx_state;
@@ -67,7 +66,7 @@ void rplidar_feedback_handler(const lcm::ReceiveBuffer* rbuf, const std::string&
 		vx_buffer_add_back(mybuf, line);
 	}
 	vx_buffer_swap(mybuf);
-    // cout << "byelidar" << endl;
+    // cout << "byelidar" << endl;float delta_s_l = (DISTANCE_TICK * delta_left);
 
 }
 
@@ -86,13 +85,10 @@ void motor_feedback_handler (const lcm::ReceiveBuffer* rbuf, const std::string& 
 		odo_state.right = msg->encoder_right_ticks;
 		odo_state.init = 1;
 
-	} else{
+	} else {
         float prev_x = odo_state.x;
         float prev_y = odo_state.y;
         float prev_theta = odo_state.theta;
-
-
-
 
 		int delta_left = msg->encoder_left_ticks - odo_state.left;
 		int delta_right = msg->encoder_right_ticks - odo_state.right;
@@ -144,7 +140,7 @@ void motor_feedback_handler (const lcm::ReceiveBuffer* rbuf, const std::string& 
         action_state.alpha = eecs467::angle_diff(atan2(delta_y, delta_x), prev_theta);
         action_state.s = sqrt((delta_x)*(delta_x) + (delta_y)*(delta_y));
         action_state.phi = eecs467::angle_diff(odo_state.theta, prev_theta);
-        action_state.last_updated = msg->utime;
+        action_state.cur_time = msg->utime;
 	}
 	odo_state.last_updated = msg->utime;
     // cout << "byemotor" << endl;
@@ -283,22 +279,7 @@ void occupancy_grid_handler(const lcm::ReceiveBuffer* rbuf, const std::string& c
 void* lcm_handler(void *args)
 {
 	while(1){
-		int c;
-		if ((c = state.lcm.handleTimeout(500)) <= 0) {
-			ofstream fout("/home/daranday/Michigan/eecs467/grid_map.txt" , std::ofstream::out);
-			cout << "FILE WRITTEN!" << endl;
-			fout << (int)grid_width_c << " " << (int)grid_height_c << " " << cell_sides_width_c << endl;
-			fout << state.grid.widthInCells() << " " << state.grid.heightInCells() << endl;
-			for (int i = 0; i < state.grid.heightInCells(); ++i) {
-				for (int j = 0; j < state.grid.widthInCells(); ++j)
-					fout << (int)state.grid(j, i) << " ";
-				fout << endl;
-				
-			}
-			fout.close();
-			exit(0);
-		}
-		cout << "NOT WRITING FILE, c = " << c << endl;
+		state.lcm.handle();
 	}
 	return NULL;
 }

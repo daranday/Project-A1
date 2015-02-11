@@ -22,7 +22,8 @@ LDFLAGS = $(LDFLAGS_STD) \
 	  $(LDFLAGS_IMAGESOURCE) \
 	  $(LDFLAGS_MATH) \
 	  $(LDFLAGS_COMMON) \
-	  $(LDFLAGS_LCMTYPES)
+	  $(LDFLAGS_LCMTYPES) \
+	  $(LDFLAGS_GSL)
 
 
 LIBDEPS = $(call libdeps, $(LDFLAGS))
@@ -63,7 +64,7 @@ $(BIN_EECS467_MAEBOT_VIDEO_TELOP): maebot_video_teleop.o $(LIBDEPS)
 	@echo "\t$@"
 	@$(CC) -o $@ $^ $(LDFLAGS)
 
-$(BIN_PROJECT1): project1.o maebot_view.o ../mapping/occupancy_grid.o $(LIB_EECS467) $(LIBDEPS)
+$(BIN_PROJECT1): project1.o maebot_view.o ../mapping/occupancy_grid.o particle_filter.o $(LIB_EECS467) $(LIBDEPS)
 	@echo "\t$@"
 	@$(CXX) -o $@ $^ $(LDFLAGS) $(CXXFLAGS)
 
