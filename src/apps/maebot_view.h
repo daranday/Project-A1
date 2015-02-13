@@ -120,11 +120,6 @@ struct Action_state {
 
 extern Action_state action_state;
 
-
-
-
-
-
 struct IMU_State {
   matd_t *bot; // 3x2 state [x, Vx][y, Vy][theta, Vtheta]
   int64_t prev_time;

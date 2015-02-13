@@ -19,25 +19,6 @@ const float p1_cell_sides_width_c = 0.05;
 typedef eecs467::Point<int> IntPoint;
 typedef eecs467::Point<double> DoublePoint;
 
-
-/*
-// ################ make it pointer?? or make copy constructor ########################
-// assume weight is positive
-vector< Particle_Tuple > sample (const vector< Particle_Tuple > & particles) {
-    double step = 1.0/NUM_PARTICLE;
-    double weight_sum = particles[0].weight;
-    int index = 0;
-    vector< Particle_Tuple > sampled_particles;
-    for (double s = 0; s < 1; s+=step) {
-        while (weight_sum <= s) {
-            weight_sum += particles[++index].weight;
-        }
-        sampled_particles.push_back(particles[index]);
-    }
-    return sampled_particles;
-}
-*/
-
 void raytrace(double x0, double y0, double x1, double y1)
 {
     double dx = abs(x1 - x0);
@@ -198,7 +179,7 @@ void* grid_broadcast_generator(void* args) {
 }
 
 void init_main_handlers() {
-    // state.lcm.subscribeFunction("MAEBOT_MOTOR_FEEDBACK", motor_feedback_handler, (void*) NULL);
+    state.lcm.subscribeFunction("MAEBOT_MOTOR_FEEDBACK", motor_feedback_handler, (void*) NULL);
     // state.lcm.subscribeFunction("MAEBOT_LASER_SCAN", rplidar_feedback_handler, (void*) NULL);
     // task 2 
     state.lcm.subscribeFunction("MAEBOT_MOTOR_FEEDBACK", action_model_updater, (void*) NULL);
@@ -212,7 +193,7 @@ void init_main_handlers() {
 void read_map() {
     float map_width, map_height, cell_side;
     int grid_width, grid_height, cell_odds;
-    ifstream fin("../maps/grid_map.txt");
+    ifstream fin("maps/grid_map.txt");
 
     fin >> map_width >> map_height >> cell_side;
     fin >> grid_width >> grid_height;
@@ -235,51 +216,6 @@ void read_map() {
 int main(int argc, char** argv) {
     init_main_handlers();
     read_map();
-
-
-
-//     int w = state.grid.widthInCells();
-//     int h = state.grid.heightInCells();
-
-
-//     image_u8_t *im = image_u8_create (w, h);
-//     // For debugging
-//     // std::cout << msg->origin_x << "," << msg->origin_y << "," << msg->meters_per_cell << "," << msg->width << "," << msg->height << "," << msg->num_cells << "\n";
-//     // std::cout << "h " << h << ", w " << w << "\n";
-//     // std::cout << "stride " << im->stride << "\n";
-
-//     for (int j = 0; j < h; ++j) {
-//         for (int i = 0; i < w; ++i) {
-//             //cout << 127 - state.grid.logOdds(i,j) << ",";
-
-//             im->buf[j*im->stride+i] = 127 - state.grid.logOdds(i,j);
-//             // std::cout << (int) im->buf[j*im->stride+i] << ",";
-//             // std::cout << "buf[" << j*w+i << "]: " << state.grid.logOdds(i,j) << std::endl;
-//         }
-//         //cout << std::endl;
-//     }
-//     std::cout << "done shifting " << state.scale << endl;
-
-//     if (im != NULL) {
-//         cout << "1" << endl;
-//         vx_object_t * vo = vxo_image_from_u8(im, VXO_IMAGE_NOFLAGS, VX_TEX_MIN_FILTER);
-// cout << "2" << endl;
-//         vx_buffer_t *vb = vx_world_get_buffer(vx_state.world, "map");
-// cout << "3 " << endl;
-//         vx_buffer_add_back(vb,  vxo_chain (
-//                                     vxo_mat_translate3 (state.scale * state.grid.originInGlobalFrame().x, 
-//                                                         state.scale * state.grid.originInGlobalFrame().y, 
-//                                                         -0.001), 
-//                                     vxo_mat_scale(state.scale * state.grid.metersPerCell()), vo));
-// cout << "4" << endl;
-//         vx_buffer_swap(vb);
-//     }
-//     else {
-//         printf("Error converting to image");
-//     }
-//     image_u8_destroy(im);
-    // cout << "byegrid" << endl;
-
 
     pthread_t grid_broadcast_thread;
     pthread_create(&grid_broadcast_thread, NULL, grid_broadcast_generator, (void*)NULL);
