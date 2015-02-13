@@ -28,12 +28,23 @@ void update_particle_weight(Particle_t& particle, DoublePoint& laser_end_positio
 }
 
 
+void add_point_to_buf(vx_buffer_t *buf, float x, float y, float z) {
+    float current_position[3] = {state.scale * x, state.scale * y, z};
+    vx_resc_t *the_point = vx_resc_copyf(current_position, 3);
+    vx_object_t *trace = vxo_points(the_point, 1, vxo_points_style(vx_red, 2.0f));
+    vx_buffer_add_back(buf, trace);
+}
+
+void add_line_to_buf(vx_buffer_t *buf, float x, float y, float z) {
+
+}
 
 void sensor_model_updater(const lcm::ReceiveBuffer* rbuf, const std::string& channel, const maebot_laser_scan_t *scan, void *user)
 {
     // cout << "doing sensor model" << endl;
 
     double max_weight = -std::numeric_limits<double>::max(); // minimum float nubmer
+    int best_particle_index;
 
     vx_buffer_t * mybuf = vx_world_get_buffer(vx_state.world, "Yellow Laser");
     vx_buffer_t * mybuf2 = vx_world_get_buffer(vx_state.world, "current particle");
@@ -92,6 +103,7 @@ void sensor_model_updater(const lcm::ReceiveBuffer* rbuf, const std::string& cha
         }
         if (particles[j].weight > max_weight) {
             max_weight = particles[j].weight;
+            best_particle_index = j;
         }
 
         // vx_buffer_swap(mybuf);
@@ -106,6 +118,12 @@ void sensor_model_updater(const lcm::ReceiveBuffer* rbuf, const std::string& cha
     }
     vx_buffer_swap(mybuf2);
 
+    char rp_buffer[32];
+    sprintf(rp_buffer, "ptc%d", state.particle_counter++);
+    vx_buffer_t * particle_trail_buf = vx_world_get_buffer(vx_state.world, rp_buffer);
+
+    add_point_to_buf(vx_world_get_buffer(vx_state.world, rp_buffer), particles[best_particle_index].x, particles[best_particle_index].y, 0.05);
+    vx_buffer_swap(particle_trail_buf);
     // cout << "before normalize" << endl;
     // for (int i = 0; i < NUM_PARTICLE; ++i) {
     //     cout << particles[i].x << "," << particles[i].y << ","<< particles[i].theta << "," << particles[i].weight << endl;
@@ -132,16 +150,6 @@ void sensor_model_updater(const lcm::ReceiveBuffer* rbuf, const std::string& cha
 
 }
 
-void add_point_to_buf(vx_buffer_t *buf, float x, float y, float z) {
-    float current_position[3] = {state.scale * x, state.scale * y, z};
-    vx_resc_t *the_point = vx_resc_copyf(current_position, 3);
-    vx_object_t *trace = vxo_points(the_point, 1, vxo_points_style(vx_red, 2.0f));
-    vx_buffer_add_back(buf, trace);
-}
-
-void add_line_to_buf(vx_buffer_t *buf, float x, float y, float z) {
-
-}
 
 void action_model_updater (const lcm::ReceiveBuffer* rbuf, const std::string& channel, const maebot_motor_feedback_t *msg, void *user)
 {

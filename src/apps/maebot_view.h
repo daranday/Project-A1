@@ -86,6 +86,7 @@ struct State{
 	int odo_counter;
 	int rp_counter;
 	int imu_counter;
+  int particle_counter;
 
   pthread_mutex_t state_lock;
 

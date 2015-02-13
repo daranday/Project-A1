@@ -159,7 +159,7 @@ void pose_handler(const lcm::ReceiveBuffer* rbuf, const std::string& channel, co
 
     vx_resc_t *one_point = vx_resc_copyf(current_position,3);
     vx_buffer_t *buf = vx_world_get_buffer(vx_state.world, odo_buffer);
-    vx_object_t *trace = vxo_points(one_point, 1, vxo_points_style(vx_red, 2.0f)); 
+    vx_object_t *trace = vxo_points(one_point, 1, vxo_points_style(vx_green, 2.0f)); 
     // vxo_chain(vxo_mat_translate3(state.bot.x, state.bot.y, 0.0),
     // vxo_points(one_point, 1, vxo_points_style(vx_red, 2.0f)));
     vx_buffer_add_back(buf, trace);
@@ -183,17 +183,17 @@ void init_main_handlers() {
     // state.lcm.subscribeFunction("MAEBOT_LASER_SCAN", rplidar_feedback_handler, (void*) NULL);
     // task 2 
     state.lcm.subscribeFunction("MAEBOT_MOTOR_FEEDBACK", action_model_updater, (void*) NULL);
+    state.lcm.subscribeFunction("MAEBOT_POSE", pose_handler, (void*) NULL);
     state.lcm.subscribeFunction("MAEBOT_LASER_SCAN", sensor_model_updater, (void*) NULL);
     // state.lcm.subscribeFunction("MAEBOT_SENSOR_DATA", sensor_data_handler, (void*) NULL);
     state.lcm.subscribeFunction("OCCUPANCY_GRID", occupancy_grid_handler, (void*) NULL);
     // state.lcm.subscribeFunction("MAEBOT_LASER_SCAN", laser_update_grid_handler, (void*) NULL);
-    // state.lcm.subscribeFunction("MAEBOT_POSE", pose_handler, (void*) NULL);
 }
 
 void read_map() {
     float map_width, map_height, cell_side;
     int grid_width, grid_height, cell_odds;
-    ifstream fin("maps/grid_map.txt");
+    ifstream fin("maps/figure8_map.txt");
 
     fin >> map_width >> map_height >> cell_side;
     fin >> grid_width >> grid_height;

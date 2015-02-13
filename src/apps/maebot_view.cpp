@@ -121,18 +121,18 @@ void motor_feedback_handler (const lcm::ReceiveBuffer* rbuf, const std::string& 
 		odo_state.right = msg->encoder_right_ticks;
 
 
-		// // Update Vx World
-		// char odo_buffer[32];
-		// float current_position[3] = {state.scale * (float)odo_state.x, state.scale * (float)odo_state.y, 0.0};
-		// sprintf(odo_buffer, "odo%d", state.odo_counter++);
+		// Update Vx World
+		char odo_buffer[32];
+		float current_position[3] = {state.scale * (float)odo_state.x, state.scale * (float)odo_state.y, 0.0};
+		sprintf(odo_buffer, "odo%d", state.odo_counter++);
 
-		// vx_resc_t *one_point = vx_resc_copyf(current_position,3);
-		// vx_buffer_t *buf = vx_world_get_buffer(vx_state.world, odo_buffer);
-		// vx_object_t *trace = vxo_points(one_point, 1, vxo_points_style(vx_red, 2.0f)); 
-		// // vxo_chain(vxo_mat_translate3(odo_state.x, odo_state.y, 0.0),
-		// // vxo_points(one_point, 1, vxo_points_style(vx_red, 2.0f)));
-		// vx_buffer_add_back(buf, trace);
-		// vx_buffer_swap(buf);
+		vx_resc_t *one_point = vx_resc_copyf(current_position,3);
+		vx_buffer_t *buf = vx_world_get_buffer(vx_state.world, odo_buffer);
+		vx_object_t *trace = vxo_points(one_point, 1, vxo_points_style(vx_blue, 2.0f)); 
+		// vxo_chain(vxo_mat_translate3(odo_state.x, odo_state.y, 0.0),
+		// vxo_points(one_point, 1, vxo_points_style(vx_red, 2.0f)));
+		vx_buffer_add_back(buf, trace);
+		vx_buffer_swap(buf);
 
 
         delta_x = odo_state.x - prev_x;
