@@ -69,52 +69,37 @@ void raytrace(double x0, double y0, double x1, double y1)
 
 void laser_update_grid_handler(const lcm::ReceiveBuffer* rbuf, const std::string& channel, const maebot_laser_scan_t *scan, void *user)
 {
-    system("clear");
-    vx_buffer_t *mybuf;
-    int counts = 0;
-    mybuf = vx_world_get_buffer(vx_state.world, "Yellow Laser");
+    vx_buffer_t *mybuf = vx_world_get_buffer(vx_state.world, "Yellow Laser");
     // cout << "hellolasergrid" << endl;
+    int counts = 0;
     for(int i = 0; i < scan->num_ranges; ++i){
         if(scan->intensities[i] <= 0)
             continue;
         
-        float single_line[4], elapsed_time, plot_line[4]; 
+        float single_line[4], elapsed_time, plot_line[4];
+        int64_t last_updated_time = odo_state.last_updated;// odo_state.last_updated
 
         // Calculated Elapsed Time.
-
-        int64_t last_updated_time = pose_state.last_updated;// odo_state.last_updated
-
-        if (scan->times[i] > last_updated_time)
-            elapsed_time = scan->times[i] - last_updated_time;
-        else
-            elapsed_time = -1.0 * (last_updated_time - scan->times[i]);
-        elapsed_time /= 1000000.0;
+        elapsed_time = (scan->times[i] - last_updated_time ) / 1000000.;
 
         float x, y;
         x = (scan->ranges[i]) * cosf(scan->thetas[i]);
         y = (scan->ranges[i]) * sinf(scan->thetas[i]);
-        rotate_matrix_z(&x, &y, pose_state.theta + elapsed_time * pose_state.v_theta);
+        rotate_matrix_z(&x, &y, odo_state.theta + 0.4 * elapsed_time * odo_state.v_theta);
 
-        plot_line[0] = state.scale * (pose_state.x + elapsed_time * pose_state.v_x);
-        plot_line[1] = state.scale * (pose_state.y + elapsed_time * pose_state.v_y);
+        plot_line[0] = state.scale * (odo_state.x + elapsed_time * odo_state.v_x);
+        plot_line[1] = state.scale * (odo_state.y + elapsed_time * odo_state.v_y);
         plot_line[2] = plot_line[0] + state.scale * x;
         plot_line[3] = plot_line[1] - state.scale * y;
 
 
-        // fprintf(stderr, "Corrections: x = %f\t y = %f\t delta = %f\n", elapsed_time * pose_state.v_x, elapsed_time * pose_state.v_y, elapsed_time * pose_state.v_theta);
-
-        // cerr << "Elapsed time: " << elapsed_time << endl;
-        single_line[0] = pose_state.x + elapsed_time * pose_state.v_x;
-        single_line[1] = pose_state.y + elapsed_time * pose_state.v_y;
+        single_line[0] = odo_state.x + elapsed_time * odo_state.v_x;
+        single_line[1] = odo_state.y + elapsed_time * odo_state.v_y;
         single_line[2] = single_line[0] + x;
         single_line[3] = single_line[1] - y;
 
-        if (fabs(pose_state.v_theta) > 10 )
+        if (fabs(odo_state.v_theta) > 10 )
             return;
-
-        // printf("%.4f\t%.4f\t%.4f\t%.4f\n", pose_state.v_x, pose_state.v_y, pose_state.v_theta, elapsed_time);
-        // printf("%d\t%.3f\t%.3f\t%.3f\t%.3f\t\t%.3f\t\t%.3f\n", counts, plot_line[0], plot_line[1], plot_line[2], plot_line[3], elapsed_time * pose_state.v_theta,
-        //                                             distance_between_points(DoublePoint(plot_line[0], plot_line[1]), DoublePoint(plot_line[2], plot_line[3])));
 
         
         vx_resc_t *verts = vx_resc_copyf(plot_line, 2 * 2);
@@ -126,7 +111,7 @@ void laser_update_grid_handler(const lcm::ReceiveBuffer* rbuf, const std::string
     }
     cout << "-----------" << counts << endl;
     if (counts != 0)
-            vx_buffer_swap(mybuf);
+        vx_buffer_swap(mybuf);
     // cout << "byelasergrid" << endl;
 }
 
@@ -170,24 +155,24 @@ void pose_handler(const lcm::ReceiveBuffer* rbuf, const std::string& channel, co
 }
 
 void* grid_broadcast_generator(void* args) {
+    double fps = 30;
     while(1) {
         maebot_occupancy_grid_t new_grid_msg = state.grid.toLCM();
         state.lcm.publish("OCCUPANCY_GRID", &new_grid_msg);
-        usleep(1000000);
+        usleep(1000000./fps);
     }
     return NULL;
 }
 
 void init_main_handlers() {
+    state.lcm.subscribeFunction("MAEBOT_POSE", pose_handler, (void*) NULL);
+    state.lcm.subscribeFunction("OCCUPANCY_GRID", occupancy_grid_handler, (void*) NULL);
+    state.lcm.subscribeFunction("MAEBOT_LASER_SCAN", laser_update_grid_handler, (void*) NULL);
+    state.lcm.subscribeFunction("MAEBOT_LASER_SCAN", sensor_model_updater, (void*) NULL);
     state.lcm.subscribeFunction("MAEBOT_MOTOR_FEEDBACK", motor_feedback_handler, (void*) NULL);
     // state.lcm.subscribeFunction("MAEBOT_LASER_SCAN", rplidar_feedback_handler, (void*) NULL);
-    // task 2 
     state.lcm.subscribeFunction("MAEBOT_MOTOR_FEEDBACK", action_model_updater, (void*) NULL);
-    state.lcm.subscribeFunction("MAEBOT_POSE", pose_handler, (void*) NULL);
-    state.lcm.subscribeFunction("MAEBOT_LASER_SCAN", sensor_model_updater, (void*) NULL);
     // state.lcm.subscribeFunction("MAEBOT_SENSOR_DATA", sensor_data_handler, (void*) NULL);
-    state.lcm.subscribeFunction("OCCUPANCY_GRID", occupancy_grid_handler, (void*) NULL);
-    // state.lcm.subscribeFunction("MAEBOT_LASER_SCAN", laser_update_grid_handler, (void*) NULL);
 }
 
 void read_map() {
@@ -215,7 +200,6 @@ void read_map() {
 
 int main(int argc, char** argv) {
     init_main_handlers();
-    read_map();
 
     pthread_t grid_broadcast_thread;
     pthread_create(&grid_broadcast_thread, NULL, grid_broadcast_generator, (void*)NULL);

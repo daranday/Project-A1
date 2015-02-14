@@ -14,10 +14,10 @@ void update_particle_weight(Particle_t& particle, DoublePoint& laser_end_positio
     IntPoint laser_end_cell = eecs467::global_position_to_grid_cell(laser_end_position, state.grid);
 
     if (state.grid.isCellInGrid(laser_end_cell.x, laser_end_cell.y)) {
-        if (state.grid(laser_end_cell.x, laser_end_cell.y) < 63) {
-            particle.weight -= 12;
-        } else if (state.grid(laser_end_cell.x, laser_end_cell.y) >= 64) {
+        if (state.grid(laser_end_cell.x, laser_end_cell.y) >= GREY_BLACK_THRESH) {
             particle.weight -= 4;
+        } else if (state.grid(laser_end_cell.x, laser_end_cell.y) >= WHITE_GREY_THRESH) {
+            particle.weight -= 12;
         } else {
             particle.weight -= 8;
         }
