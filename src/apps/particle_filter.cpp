@@ -39,6 +39,13 @@ void add_line_to_buf(vx_buffer_t *buf, float x, float y, float z) {
 
 }
 
+void update_slam_state(Particle_t &particle, int64_t last_updated) {
+    slam_state.x = particle.x;
+    slam_state.y = particle.y;
+    slam_state.theta = particle.theta;
+    slam_state.last_updated = last_updated;
+}
+
 void sensor_model_updater(const lcm::ReceiveBuffer* rbuf, const std::string& channel, const maebot_laser_scan_t *scan, void *user)
 {
     // cout << "doing sensor model" << endl;
@@ -123,6 +130,7 @@ void sensor_model_updater(const lcm::ReceiveBuffer* rbuf, const std::string& cha
     vx_buffer_t * particle_trail_buf = vx_world_get_buffer(vx_state.world, rp_buffer);
 
     add_point_to_buf(vx_world_get_buffer(vx_state.world, rp_buffer), particles[best_particle_index].x, particles[best_particle_index].y, 0.05);
+    update_slam_state(particles[best_particle_index], scan->utime);
     vx_buffer_swap(particle_trail_buf);
     // cout << "before normalize" << endl;
     // for (int i = 0; i < NUM_PARTICLE; ++i) {

@@ -79,6 +79,7 @@ struct Pose_state_t : Pose_t {
 };
 
 extern Pose_state_t pose_state;
+extern Pose_state_t slam_state;
 
 struct State{
   lcm::LCM lcm;

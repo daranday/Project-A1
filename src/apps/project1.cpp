@@ -69,7 +69,7 @@ void raytrace(double x0, double y0, double x1, double y1)
 
 void laser_update_grid_handler(const lcm::ReceiveBuffer* rbuf, const std::string& channel, const maebot_laser_scan_t *scan, void *user)
 {
-    vx_buffer_t *mybuf = vx_world_get_buffer(vx_state.world, "Yellow Laser");
+    // vx_buffer_t *mybuf = vx_world_get_buffer(vx_state.world, "Yellow Laser");
     // cout << "hellolasergrid" << endl;
     int counts = 0;
     for(int i = 0; i < scan->num_ranges; ++i){
@@ -98,39 +98,33 @@ void laser_update_grid_handler(const lcm::ReceiveBuffer* rbuf, const std::string
         single_line[2] = single_line[0] + x;
         single_line[3] = single_line[1] - y;
 
-        if (fabs(odo_state.v_theta) > 10 )
+        if (fabs(odo_state.v_theta) > 10)
             return;
 
         
-        vx_resc_t *verts = vx_resc_copyf(plot_line, 2 * 2);
-        vx_object_t *line = vxo_lines(verts, 2, GL_LINES, vxo_points_style(counts < 290/3 ? vx_green : counts < 290*2/3 ? vx_blue : vx_yellow, 2.0f));
-        vx_buffer_add_back(mybuf, line);
+        // vx_resc_t *verts = vx_resc_copyf(plot_line, 2 * 2);
+        // vx_object_t *line = vxo_lines(verts, 2, GL_LINES, vxo_points_style(counts < 290/3 ? vx_green : counts < 290*2/3 ? vx_blue : vx_yellow, 2.0f));
+        // vx_buffer_add_back(mybuf, line);
         counts++;
 
         raytrace(single_line[0], single_line[1], single_line[2], single_line[3]);
     }
     cout << "-----------" << counts << endl;
-    if (counts != 0)
-        vx_buffer_swap(mybuf);
+    // vx_buffer_swap(mybuf);
     // cout << "byelasergrid" << endl;
 }
 
 void pose_handler(const lcm::ReceiveBuffer* rbuf, const std::string& channel, const maebot_pose_t* msg, void* user) {
     // cout << "hellopose" << endl;
-    float time_elapsed;
     int64_t last_updated_time = pose_state.last_updated;// odo_state.last_updated
+    if (last_updated_time != 0) {
+        float   time_elapsed      = (msg->utime - last_updated_time) / 1000000.;
 
-    if (msg->utime > last_updated_time)
-        time_elapsed = msg->utime - last_updated_time;
-    else
-        time_elapsed = -1.0 * (last_updated_time - msg->utime);
-
-    time_elapsed /= 1000000.0;
-    float speed = sqrt((msg->x - pose_state.x) * (msg->x - pose_state.x) + (msg->y - pose_state.y) * (msg->y - pose_state.y)) / time_elapsed;
-    pose_state.v_x = speed * cosf(msg->theta);
-    pose_state.v_y = speed * sinf(msg->theta);
-    pose_state.v_theta = (msg->theta - pose_state.theta) / time_elapsed;
-
+        float speed = sqrt((msg->x - pose_state.x) * (msg->x - pose_state.x) + (msg->y - pose_state.y) * (msg->y - pose_state.y)) / time_elapsed;
+        pose_state.v_x = speed * cosf(msg->theta);
+        pose_state.v_y = speed * sinf(msg->theta);
+        pose_state.v_theta = eecs467::angle_diff(msg->theta, pose_state.theta) / time_elapsed;
+    }
 
     pose_state.x = msg->x;
     pose_state.y = msg->y;

@@ -4,8 +4,8 @@
 #include "maebot_view.h"
 
 const int NUM_PARTICLE = 1000;
-const int GREY_BLACK_THRESH = 64;
-const int WHITE_GREY_THRESH = -64;
+const int GREY_BLACK_THRESH = 32;
+const int WHITE_GREY_THRESH = -32;
 
 typedef eecs467::Point<int> IntPoint;
 typedef eecs467::Point<double> DoublePoint;

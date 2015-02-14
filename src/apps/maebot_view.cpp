@@ -9,6 +9,7 @@ Odo_state odo_state;
 IMU_State imu_state;
 Occupancy_Grid_State occupancy_grid_state;
 Pose_state_t pose_state;
+Pose_state_t slam_state;
 Action_state action_state;
 
 using namespace std;
