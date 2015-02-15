@@ -91,11 +91,22 @@ struct State{
 
   pthread_mutex_t state_lock;
 
+  bool weight_updated;
+
   float scale;
+
+  char buffer_name[32];
+
 
   eecs467::OccupancyGrid grid;
 
-  State() :odo_counter(0), rp_counter(0), imu_counter(0), scale(8.0), grid(eecs467::OccupancyGrid(grid_width_c, grid_height_c, cell_sides_width_c)){}
+  State() :odo_counter(0), rp_counter(0), imu_counter(0), particle_counter(0), weight_updated(false), scale(8.0), grid(eecs467::OccupancyGrid(grid_width_c, grid_height_c, cell_sides_width_c)){}
+  const char* get_next_buffer_name(const char* buffer_type) {
+    if (strcmp("particle", buffer_type) == 0) {
+      sprintf(buffer_name, "ptc%d", particle_counter++);
+    }
+    return buffer_name;
+  }
 };
 
 extern State state;
@@ -169,11 +180,13 @@ void rotate_matrix_z(float* x, float* y, float theta);
 void rplidar_feedback_handler(const lcm::ReceiveBuffer* rbuf, const std::string& channel, const maebot_laser_scan_t *scan, void *user);
 void motor_feedback_handler (const lcm::ReceiveBuffer* rbuf, const std::string& channel, const maebot_motor_feedback_t *msg, void *user);
 void sensor_data_handler (const lcm::ReceiveBuffer* rbuf, const std::string& channel, const maebot_sensor_data_t *msg, void *user);
-void occupancy_grid_handler(const lcm::ReceiveBuffer* rbuf, const std::string& channel, const maebot_occupancy_grid_t* msg, void* user);
+void plot_occupancy_grid_handler(const lcm::ReceiveBuffer* rbuf, const std::string& channel, const maebot_occupancy_grid_t* msg, void* user);
 void* lcm_handler(void *args);
 void display_finished(vx_application_t * app, vx_display_t * disp);
 void display_started(vx_application_t * app, vx_display_t * disp);
 void draw(vx_world_t * world, zarray_t * obj_data);
 
+void add_point_to_buf(vx_buffer_t *buf, const float* color, float x, float y, float z);
+void add_line_to_buf(vx_buffer_t *buf, const float* color, float* line);
 
 #endif

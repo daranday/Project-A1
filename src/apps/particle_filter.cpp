@@ -10,7 +10,6 @@ using namespace std;
 vector <Particle_t> particles(NUM_PARTICLE);
 
 void update_particle_weight(Particle_t& particle, DoublePoint& laser_end_position) {
-    //DoublePoint laser_end_position = DoublePoint(particle.x + delta_r.x, particle.y + delta_r.y);
     IntPoint laser_end_cell = eecs467::global_position_to_grid_cell(laser_end_position, state.grid);
 
     if (state.grid.isCellInGrid(laser_end_cell.x, laser_end_cell.y)) {
@@ -28,33 +27,32 @@ void update_particle_weight(Particle_t& particle, DoublePoint& laser_end_positio
 }
 
 
-void add_point_to_buf(vx_buffer_t *buf, float x, float y, float z) {
-    float current_position[3] = {state.scale * x, state.scale * y, z};
-    vx_resc_t *the_point = vx_resc_copyf(current_position, 3);
-    vx_object_t *trace = vxo_points(the_point, 1, vxo_points_style(vx_red, 2.0f));
-    vx_buffer_add_back(buf, trace);
-}
+void update_slam_state(Particle_t &best_particle, int64_t current_time) {
+    // Update velocity
+    if (slam_state.last_updated != 0) {
+        float time_elapsed = (current_time - slam_state.last_updated) / 1000000.;
+        float speed = sqrt((best_particle.x - slam_state.x) * (best_particle.x - slam_state.x) + (best_particle.y - slam_state.y) * (best_particle.y - slam_state.y)) / time_elapsed;
 
-void add_line_to_buf(vx_buffer_t *buf, float x, float y, float z) {
-
-}
-
-void update_slam_state(Particle_t &particle, int64_t last_updated) {
-    slam_state.x = particle.x;
-    slam_state.y = particle.y;
-    slam_state.theta = particle.theta;
-    slam_state.last_updated = last_updated;
+        slam_state.v_x = speed * cosf(best_particle.theta);
+        slam_state.v_y = speed * sinf(best_particle.theta);
+        slam_state.v_theta = eecs467::angle_diff(best_particle.theta, slam_state.theta) / time_elapsed;
+    }
+    // Update position
+    slam_state.x = best_particle.x;
+    slam_state.y = best_particle.y;
+    slam_state.theta = best_particle.theta;
+    slam_state.last_updated = current_time;
 }
 
 void sensor_model_updater(const lcm::ReceiveBuffer* rbuf, const std::string& channel, const maebot_laser_scan_t *scan, void *user)
 {
     // cout << "doing sensor model" << endl;
-
     double max_weight = -std::numeric_limits<double>::max(); // minimum float nubmer
     int best_particle_index;
 
-    vx_buffer_t * mybuf = vx_world_get_buffer(vx_state.world, "Yellow Laser");
-    vx_buffer_t * mybuf2 = vx_world_get_buffer(vx_state.world, "current particle");
+    vx_buffer_t * laser_buffer = vx_world_get_buffer(vx_state.world, "Sensor Model Laser");
+    vx_buffer_t * particles_buffer = vx_world_get_buffer(vx_state.world, "Sensor Model Particles");
+    vx_buffer_t * best_particle_buffer = vx_world_get_buffer(vx_state.world, state.get_next_buffer_name("particle"));
     // cout << "float_ min " << FLT_MIN << endl;
 
     for (int j = 0, len = particles.size(); j < len; ++j) {
@@ -62,76 +60,45 @@ void sensor_model_updater(const lcm::ReceiveBuffer* rbuf, const std::string& cha
         for(int i = 0; i < scan->num_ranges; ++i){
             if(scan->intensities[i] <= 0)
                 continue;
-            int64_t last_updated_time = odo_state.last_updated;// odo_state.last_updated
-            float single_line[4], plot_line[4], elapsed_time; 
-            float x, y;
-            
-            elapsed_time = (scan->times[i] - last_updated_time) / 1000000.0;
+            float single_line[4], elapsed_time, x, y;             
 
+            elapsed_time = (scan->times[i] - slam_state.last_updated) / 1000000.0;
             x = (scan->ranges[i]) * cosf(scan->thetas[i]);
             y = (scan->ranges[i]) * sinf(scan->thetas[i]);
+            rotate_matrix_z(&x, &y, eecs467::angle_sum(particles[j].theta, elapsed_time * slam_state.v_theta));
 
-            // use odostate velocity
-
-            // ######## use odostate theta don't consider the particle's theta ##########
-            //rotate_matrix_z(&x, &y, eecs467::angle_sum(odo_state.theta, elapsed_time * odo_state.v_theta);
-            rotate_matrix_z(&x, &y, eecs467::angle_sum(particles[j].theta, 0.4 * elapsed_time * odo_state.v_theta));
-
-            // ######## use odostate position don't consider the particle's position ##########
-            //single_line[0] = odo_state.x + elapsed_time * odo_state.v_x;
-            //single_line[1] = odo_state.y + elapsed_time * odo_state.v_y;
-
-            single_line[0] = particles[j].x + elapsed_time * odo_state.v_x;
-            single_line[1] = particles[j].y + elapsed_time * odo_state.v_y;
+            single_line[0] = particles[j].x + elapsed_time * slam_state.v_x;
+            single_line[1] = particles[j].y + elapsed_time * slam_state.v_y;
             single_line[2] = single_line[0] + x;
             single_line[3] = single_line[1] - y;
 
-            
-            plot_line[0] = state.scale * (particles[j].x + elapsed_time * odo_state.v_x);
-            plot_line[1] = state.scale * (particles[j].y + elapsed_time * odo_state.v_y);
-            plot_line[2] = plot_line[0] + state.scale * x;
-            plot_line[3] = plot_line[1] - state.scale * y;
-
-            if (fabs(odo_state.v_theta) > 10 )
+            if (fabs(slam_state.v_theta) > 10 )
                 return;
 
             // update weight for particles
-            
-            // vx_resc_t *verts = vx_resc_copyf(plot_line, 2 * 2);
-            // vx_object_t *line = vxo_lines(verts, 2, GL_LINES, vxo_points_style(counts < 290/3 ? vx_green : counts < 290*2/3 ? vx_blue : vx_yellow, 2.0f));
-            // vx_buffer_add_back(mybuf, line);
-            counts++;
-            
-            //DoublePoint delta_r(single_line[2] - single_line[0], single_line[3] - single_line[1]);
             DoublePoint laser_end_position(single_line[2], single_line[3]);
-            
             update_particle_weight(particles[j], laser_end_position);
-
+            
+            // Add line to laser buffer
+            add_line_to_buf(laser_buffer, counts < 290/3 ? vx_green : counts < 290*2/3 ? vx_blue : vx_yellow, single_line);
+            counts++;
         }
         if (particles[j].weight > max_weight) {
             max_weight = particles[j].weight;
             best_particle_index = j;
         }
 
-        // vx_buffer_swap(mybuf);
-
-        
-        float current_position[3] = {state.scale * (float)particles[j].x, state.scale * (float)particles[j].y, 0.05};
-        vx_resc_t *one_point = vx_resc_copyf(current_position,3);
-        vx_object_t *trace = vxo_points(one_point, 1, vxo_points_style(vx_red, 2.0f)); 
-        // vxo_chain(vxo_mat_translate3(state.bot.x, state.bot.y, 0.0),
-        // vxo_points(one_point, 1, vxo_points_style(vx_red, 2.0f)));
-        vx_buffer_add_back(mybuf2, trace);
+        // Add point to ALL PARTICLES
+        add_point_to_buf(particles_buffer, vx_red, particles[j].x, particles[j].y, 0.05);
     }
-    vx_buffer_swap(mybuf2);
 
-    char rp_buffer[32];
-    sprintf(rp_buffer, "ptc%d", state.particle_counter++);
-    vx_buffer_t * particle_trail_buf = vx_world_get_buffer(vx_state.world, rp_buffer);
 
-    add_point_to_buf(vx_world_get_buffer(vx_state.world, rp_buffer), particles[best_particle_index].x, particles[best_particle_index].y, 0.05);
+    add_point_to_buf(best_particle_buffer, vx_red, particles[best_particle_index].x, particles[best_particle_index].y, 0.05);
     update_slam_state(particles[best_particle_index], scan->utime);
-    vx_buffer_swap(particle_trail_buf);
+    state.weight_updated = true;
+
+    vx_buffer_swap(particles_buffer);
+    vx_buffer_swap(best_particle_buffer);
     // cout << "before normalize" << endl;
     // for (int i = 0; i < NUM_PARTICLE; ++i) {
     //     cout << particles[i].x << "," << particles[i].y << ","<< particles[i].theta << "," << particles[i].weight << endl;
@@ -151,10 +118,10 @@ void sensor_model_updater(const lcm::ReceiveBuffer* rbuf, const std::string& cha
         particles[j].weight /= weight_sum;
     }
 
-    cout << "after normalize" << endl;
-    for (int i = 0; i < NUM_PARTICLE; ++i) {
-        cout << particles[i].x << "," << particles[i].y << ","<< particles[i].theta << "," << particles[i].weight << endl;
-    }
+    // cout << "after normalize" << endl;
+    // for (int i = 0; i < NUM_PARTICLE; ++i) {
+    //     cout << particles[i].x << "," << particles[i].y << ","<< particles[i].theta << "," << particles[i].weight << endl;
+    // }
 
 }
 
@@ -163,66 +130,71 @@ void action_model_updater (const lcm::ReceiveBuffer* rbuf, const std::string& ch
 {
     // cout << "doing action model" << endl;
 
-    // sample
-    vector<Particle_t> sampled_particles(NUM_PARTICLE);
-    double step = 1.0/NUM_PARTICLE;
-    double weight_sum = particles[0].weight;
-    double step_sum = step/2;
-    int index = 0;
-    for (int i = 0; i < NUM_PARTICLE; ++i) {
-        //cout << "before weight_sum " << weight_sum << " step_sum " << step_sum << " index " << index << " i " << i << endl;
-    
-        while (weight_sum <= step_sum) {
-            //cout << " particles[index].weight " << particles[index].weight << endl;
-
-            weight_sum += particles[++index].weight;
+    if (state.weight_updated == false) {
+        for (int i = 0; i < NUM_PARTICLE; ++i) {
+            particles[i].theta = eecs467::angle_sum(particles[i].theta, action_state.phi);
+            particles[i].x = particles[i].x + action_state.s*cos(particles[i].theta);
+            particles[i].y = particles[i].y + action_state.s*sin(particles[i].theta);
         }
-        sampled_particles[i] = particles[index];
-        step_sum += step;
+    } else {
+        // sample
+        vector<Particle_t> sampled_particles(NUM_PARTICLE);
+        double step = 1.0/NUM_PARTICLE;
+        double weight_sum = particles[0].weight;
+        double step_sum = step/2;
+        int index = 0;
+        for (int i = 0; i < NUM_PARTICLE; ++i) {
+            //cout << "before weight_sum " << weight_sum << " step_sum " << step_sum << " index " << index << " i " << i << endl;
+        
+            while (weight_sum <= step_sum) {
+                //cout << " particles[index].weight " << particles[index].weight << endl;
 
-        //cout << "weight_sum " << weight_sum << " step_sum " << step_sum << " index " << index << " i " << i << endl;
-    
+                weight_sum += particles[++index].weight;
+            }
+            sampled_particles[i] = particles[index];
+            step_sum += step;
+
+            //cout << "weight_sum " << weight_sum << " step_sum " << step_sum << " index " << index << " i " << i << endl;
+        
+        }
+        
+
+        /*
+            for (int i = 0; i < NUM_PARTICLE; ++i) {
+                cout << particles[i].x << "," << particles[i].y << ","<< particles[i].theta << "," << particles[i].weight << endl;
+                cout << "sample : " << sampled_particles[i] << endl;
+            }
+        */
+
+        // update
+        gsl_rng * rng = gslu_rand_rng_alloc();
+
+        float k1 = 0.05;
+        float k2 = 0.04;
+        double e1 = 0; 
+        double e2 = 0;
+        double e3 = 0;
+        for (int i = 0; i < NUM_PARTICLE; ++i) {
+            e1 = gslu_rand_gaussian(rng, 0, k1*action_state.alpha);
+            e2 = gslu_rand_gaussian(rng, 0, k2*action_state.s);
+            e3 = gslu_rand_gaussian(rng, 0, k1*(action_state.phi-action_state.alpha));
+
+            float theta_e1 = eecs467::angle_sum(sampled_particles[i].theta, e1);
+
+            particles[i].x = sampled_particles[i].x + (action_state.s + e2)*cos(eecs467::angle_sum(theta_e1, action_state.alpha));
+            particles[i].y = sampled_particles[i].y + (action_state.s + e2)*sin(eecs467::angle_sum(theta_e1, action_state.alpha));
+            particles[i].theta = eecs467::angle_sum(eecs467::angle_sum(theta_e1, action_state.phi), e3);
+            particles[i].weight = 1.0/NUM_PARTICLE;
+        }
+        delete rng;
     }
+
+    state.weight_updated = false;
+
     vx_buffer_t *buf = vx_world_get_buffer(vx_state.world, "particles");
-
-/*
-    for (int i = 0; i < NUM_PARTICLE; ++i) {
-        cout << particles[i].x << "," << particles[i].y << ","<< particles[i].theta << "," << particles[i].weight << endl;
-        cout << "sample : " << sampled_particles[i] << endl;
-    }
-*/
-
-    // update
-    gsl_rng * rng = gslu_rand_rng_alloc();
-
-    float k1 = 1.0;
-    float k2 = 0.4;
-    double e1 = 0; 
-    double e2 = 0;
-    double e3 = 0;
-    for (int i = 0; i < NUM_PARTICLE; ++i) {
-        e1 = gslu_rand_gaussian(rng, 0, k1*action_state.alpha);
-        e2 = gslu_rand_gaussian(rng, 0, k2*action_state.s);
-        e3 = gslu_rand_gaussian(rng, 0, k1*(action_state.phi-action_state.alpha));
-
-        float theta_e1 = eecs467::angle_sum(sampled_particles[i].theta, e1);
-
-        particles[i].x = sampled_particles[i].x + (action_state.s + e2)*cos(eecs467::angle_sum(theta_e1, action_state.alpha));
-        particles[i].y = sampled_particles[i].y + (action_state.s + e2)*sin(eecs467::angle_sum(theta_e1, action_state.alpha));
-        particles[i].theta = eecs467::angle_sum(eecs467::angle_sum(theta_e1, action_state.phi), e3);
-        particles[i].weight = 1.0/NUM_PARTICLE;
-    }
-    delete rng;
-
-    // float current_position[3] = {state.scale * (float)pose_state.x, state.scale * (float)pose_state.y, 0.05};
-
     for (size_t i = 0; i < particles.size(); i++) {
-        add_point_to_buf(buf, particles[i].x, particles[i].y, 0.05);
+        add_point_to_buf(buf, vx_red, particles[i].x, particles[i].y, 0.05);
     }
-    //cout << endl;
-    // vxo_chain(vxo_mat_translate3(state.bot.x, state.bot.y, 0.0),
-    // vxo_points(one_point, 1, vxo_points_style(vx_red, 2.0f)));
-    // vx_buffer_add_back(buf, trace);
     vx_buffer_swap(buf);
 }
 

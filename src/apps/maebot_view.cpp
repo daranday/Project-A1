@@ -28,6 +28,16 @@ void rotate_matrix_z(float* x, float* y, float theta)
 	*y = new_y;
 }
 
+void add_point_to_buf(vx_buffer_t *buf, const float* color, float x, float y, float z) {
+    float current_position[3] = {state.scale * x, state.scale * y, state.scale * z};
+    vx_resc_t *the_point = vx_resc_copyf(current_position, 3);
+    vx_object_t *trace = vxo_points(the_point, 1, vxo_points_style(color, 2.0f));
+    vx_buffer_add_back(buf, trace);
+}
+
+void add_line_to_buf(vx_buffer_t *buf, const float* color, float* line) {
+
+}
 
 void rplidar_feedback_handler(const lcm::ReceiveBuffer* rbuf, const std::string& channel, const maebot_laser_scan_t *scan, void *user)
 {
@@ -141,6 +151,7 @@ void motor_feedback_handler (const lcm::ReceiveBuffer* rbuf, const std::string& 
         action_state.alpha = eecs467::angle_diff(atan2(delta_y, delta_x), prev_theta);
         action_state.s = sqrt((delta_x)*(delta_x) + (delta_y)*(delta_y));
         action_state.phi = eecs467::angle_diff(odo_state.theta, prev_theta);
+        cout << "PHI - ALPHA = " << action_state.phi - action_state.alpha << endl;
         action_state.cur_time = msg->utime;
 	}
 	odo_state.last_updated = msg->utime;
@@ -232,7 +243,7 @@ void sensor_data_handler (const lcm::ReceiveBuffer* rbuf, const std::string& cha
     // uncomment above to draw IMU  
 }
 
-void occupancy_grid_handler(const lcm::ReceiveBuffer* rbuf, const std::string& channel, const maebot_occupancy_grid_t* msg, void* user) 
+void plot_occupancy_grid_handler(const lcm::ReceiveBuffer* rbuf, const std::string& channel, const maebot_occupancy_grid_t* msg, void* user) 
 {
 	// cout << "hellogrid" << endl;
 	state.grid.fromLCM(*msg);

@@ -77,7 +77,7 @@ void laser_update_grid_handler(const lcm::ReceiveBuffer* rbuf, const std::string
             continue;
         
         float single_line[4], elapsed_time, plot_line[4];
-        int64_t last_updated_time = odo_state.last_updated;// odo_state.last_updated
+        int64_t last_updated_time = slam_state.last_updated;// slam_state.last_updated
 
         // Calculated Elapsed Time.
         elapsed_time = (scan->times[i] - last_updated_time ) / 1000000.;
@@ -85,20 +85,20 @@ void laser_update_grid_handler(const lcm::ReceiveBuffer* rbuf, const std::string
         float x, y;
         x = (scan->ranges[i]) * cosf(scan->thetas[i]);
         y = (scan->ranges[i]) * sinf(scan->thetas[i]);
-        rotate_matrix_z(&x, &y, odo_state.theta + 0.4 * elapsed_time * odo_state.v_theta);
+        rotate_matrix_z(&x, &y, slam_state.theta + 0.4 * elapsed_time * slam_state.v_theta);
 
-        plot_line[0] = state.scale * (odo_state.x + elapsed_time * odo_state.v_x);
-        plot_line[1] = state.scale * (odo_state.y + elapsed_time * odo_state.v_y);
+        plot_line[0] = state.scale * (slam_state.x + elapsed_time * slam_state.v_x);
+        plot_line[1] = state.scale * (slam_state.y + elapsed_time * slam_state.v_y);
         plot_line[2] = plot_line[0] + state.scale * x;
         plot_line[3] = plot_line[1] - state.scale * y;
 
 
-        single_line[0] = odo_state.x + elapsed_time * odo_state.v_x;
-        single_line[1] = odo_state.y + elapsed_time * odo_state.v_y;
+        single_line[0] = slam_state.x + elapsed_time * slam_state.v_x;
+        single_line[1] = slam_state.y + elapsed_time * slam_state.v_y;
         single_line[2] = single_line[0] + x;
         single_line[3] = single_line[1] - y;
 
-        if (fabs(odo_state.v_theta) > 10)
+        if (fabs(slam_state.v_theta) > 10)
             return;
 
         
@@ -116,7 +116,7 @@ void laser_update_grid_handler(const lcm::ReceiveBuffer* rbuf, const std::string
 
 void pose_handler(const lcm::ReceiveBuffer* rbuf, const std::string& channel, const maebot_pose_t* msg, void* user) {
     // cout << "hellopose" << endl;
-    int64_t last_updated_time = pose_state.last_updated;// odo_state.last_updated
+    int64_t last_updated_time = pose_state.last_updated;
     if (last_updated_time != 0) {
         float   time_elapsed      = (msg->utime - last_updated_time) / 1000000.;
 
@@ -160,7 +160,7 @@ void* grid_broadcast_generator(void* args) {
 
 void init_main_handlers() {
     state.lcm.subscribeFunction("MAEBOT_POSE", pose_handler, (void*) NULL);
-    state.lcm.subscribeFunction("OCCUPANCY_GRID", occupancy_grid_handler, (void*) NULL);
+    state.lcm.subscribeFunction("OCCUPANCY_GRID", plot_occupancy_grid_handler, (void*) NULL);
     state.lcm.subscribeFunction("MAEBOT_LASER_SCAN", laser_update_grid_handler, (void*) NULL);
     state.lcm.subscribeFunction("MAEBOT_LASER_SCAN", sensor_model_updater, (void*) NULL);
     state.lcm.subscribeFunction("MAEBOT_MOTOR_FEEDBACK", motor_feedback_handler, (void*) NULL);

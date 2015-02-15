@@ -69,7 +69,7 @@ static void draw(state_t * state, vx_world_t * world)
     printf("NTH to draw here\n");
 }
 
-static void occupancy_grid_handler(const lcm_recv_buf_t *rbuf,
+static void plot_occupancy_grid_handler(const lcm_recv_buf_t *rbuf,
                const char *channel,
                const maebot_occupancy_grid_t *msg,
                void *user)
@@ -193,7 +193,7 @@ int main (int argc, char *argv[]) {
 
     maebot_occupancy_grid_t_subscribe(state->lcm,
                                         occupancy_grid_channel,
-                                        occupancy_grid_handler,
+                                        plot_occupancy_grid_handler,
                                         state);
 
     // draw initial static object
