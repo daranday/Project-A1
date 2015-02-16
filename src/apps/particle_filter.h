@@ -4,8 +4,8 @@
 #include "maebot_view.h"
 
 const int NUM_PARTICLE = 1000;
-const int GREY_BLACK_THRESH = 32;
-const int WHITE_GREY_THRESH = -32;
+const int GREY_BLACK_THRESH = 1;
+const int WHITE_GREY_THRESH = 0;
 
 typedef eecs467::Point<int> IntPoint;
 typedef eecs467::Point<double> DoublePoint;
@@ -14,6 +14,10 @@ struct Particle_t {
     double x;
     double y;
     double theta;
+    double xp;
+    double yp;
+    double thetap;
+    int64_t t;
     double weight;
     Particle_t() :x(0), y(0), theta(0), weight(1.0/NUM_PARTICLE) {}
     Particle_t(double x_in, double y_in, double t_in, double w_in) : 

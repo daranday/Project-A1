@@ -12,10 +12,6 @@
 
 using namespace std;
 
-const float p1_grid_width_c  = 4;
-const float p1_grid_height_c = 4;
-const float p1_cell_sides_width_c = 0.05;
-
 typedef eecs467::Point<int> IntPoint;
 typedef eecs467::Point<double> DoublePoint;
 
@@ -25,7 +21,7 @@ void raytrace(double x0, double y0, double x1, double y1)
     double dy = abs(y1 - y0);
     double x = x0;
     double y = y0;
-    double n = 0.01 + dx + dy;
+    double n = dx + dy - 0.01;
     double x_inc = (x1 > x0) ? 0.01 : -0.01;
     double y_inc = (y1 > y0) ? 0.01 : -0.01;
     double error = dx - dy;
@@ -67,7 +63,7 @@ void raytrace(double x0, double y0, double x1, double y1)
     state.grid(cell.x, cell.y) = state.grid(cell.x, cell.y) <= 127 - 3 ? state.grid(cell.x, cell.y) + 3 : 127;
 }
 
-void laser_update_grid_handler(const lcm::ReceiveBuffer* rbuf, const std::string& channel, const maebot_laser_scan_t *scan, void *user)
+void mapping_handler(const lcm::ReceiveBuffer* rbuf, const std::string& channel, const maebot_laser_scan_t *scan, void *user)
 {
     // vx_buffer_t *mybuf = vx_world_get_buffer(vx_state.world, "Yellow Laser");
     // cout << "hellolasergrid" << endl;
@@ -85,7 +81,7 @@ void laser_update_grid_handler(const lcm::ReceiveBuffer* rbuf, const std::string
         float x, y;
         x = (scan->ranges[i]) * cosf(scan->thetas[i]);
         y = (scan->ranges[i]) * sinf(scan->thetas[i]);
-        rotate_matrix_z(&x, &y, slam_state.theta + 0.4 * elapsed_time * slam_state.v_theta);
+        rotate_matrix_z(&x, &y, eecs467::angle_sum(slam_state.theta, elapsed_time * slam_state.v_theta));
 
         plot_line[0] = state.scale * (slam_state.x + elapsed_time * slam_state.v_x);
         plot_line[1] = state.scale * (slam_state.y + elapsed_time * slam_state.v_y);
@@ -97,8 +93,9 @@ void laser_update_grid_handler(const lcm::ReceiveBuffer* rbuf, const std::string
         single_line[1] = slam_state.y + elapsed_time * slam_state.v_y;
         single_line[2] = single_line[0] + x;
         single_line[3] = single_line[1] - y;
-
-        if (fabs(slam_state.v_theta) > 10)
+        
+        // cout << "CURRENT V_THETA = " << slam_state.v_theta << endl;
+        if (fabs(slam_state.v_theta) > 0.5)
             return;
 
         
@@ -109,6 +106,7 @@ void laser_update_grid_handler(const lcm::ReceiveBuffer* rbuf, const std::string
 
         raytrace(single_line[0], single_line[1], single_line[2], single_line[3]);
     }
+
     cout << "-----------" << counts << endl;
     // vx_buffer_swap(mybuf);
     // cout << "byelasergrid" << endl;
@@ -161,7 +159,7 @@ void* grid_broadcast_generator(void* args) {
 void init_main_handlers() {
     state.lcm.subscribeFunction("MAEBOT_POSE", pose_handler, (void*) NULL);
     state.lcm.subscribeFunction("OCCUPANCY_GRID", plot_occupancy_grid_handler, (void*) NULL);
-    state.lcm.subscribeFunction("MAEBOT_LASER_SCAN", laser_update_grid_handler, (void*) NULL);
+    state.lcm.subscribeFunction("MAEBOT_LASER_SCAN", mapping_handler, (void*) NULL);
     state.lcm.subscribeFunction("MAEBOT_LASER_SCAN", sensor_model_updater, (void*) NULL);
     state.lcm.subscribeFunction("MAEBOT_MOTOR_FEEDBACK", motor_feedback_handler, (void*) NULL);
     // state.lcm.subscribeFunction("MAEBOT_LASER_SCAN", rplidar_feedback_handler, (void*) NULL);
@@ -172,7 +170,7 @@ void init_main_handlers() {
 void read_map() {
     float map_width, map_height, cell_side;
     int grid_width, grid_height, cell_odds;
-    ifstream fin("maps/figure8_map.txt");
+    ifstream fin("maps/grid_map.txt");
 
     fin >> map_width >> map_height >> cell_side;
     fin >> grid_width >> grid_height;
@@ -194,6 +192,7 @@ void read_map() {
 
 int main(int argc, char** argv) {
     init_main_handlers();
+    // read_map();
 
     pthread_t grid_broadcast_thread;
     pthread_create(&grid_broadcast_thread, NULL, grid_broadcast_generator, (void*)NULL);

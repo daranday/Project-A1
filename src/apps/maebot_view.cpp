@@ -29,14 +29,20 @@ void rotate_matrix_z(float* x, float* y, float theta)
 }
 
 void add_point_to_buf(vx_buffer_t *buf, const float* color, float x, float y, float z) {
-    float current_position[3] = {state.scale * x, state.scale * y, state.scale * z};
+    float current_position[3] = {state.scale * x, state.scale * y, z};
     vx_resc_t *the_point = vx_resc_copyf(current_position, 3);
     vx_object_t *trace = vxo_points(the_point, 1, vxo_points_style(color, 2.0f));
     vx_buffer_add_back(buf, trace);
 }
 
 void add_line_to_buf(vx_buffer_t *buf, const float* color, float* line) {
-
+	float scaled_line[4];
+	for(int i = 0; i < 4; ++i) {
+		scaled_line[i] = line[i] * state.scale;
+	}
+	vx_resc_t *verts = vx_resc_copyf(scaled_line, 2*2);
+	vx_object_t *line_object = vxo_lines(verts, 2, GL_LINES, vxo_points_style(color, 2.0f));
+	vx_buffer_add_back(buf, line_object);
 }
 
 void rplidar_feedback_handler(const lcm::ReceiveBuffer* rbuf, const std::string& channel, const maebot_laser_scan_t *scan, void *user)
@@ -108,7 +114,7 @@ void motor_feedback_handler (const lcm::ReceiveBuffer* rbuf, const std::string& 
 		float delta_s_r = (DISTANCE_TICK * delta_right);
 
 		float delta_s =(delta_s_l + delta_s_r)/2.0;
-		float delta_theta = (delta_s_r - delta_s_l)/WHEEL_BASE + odo_state.theta;
+		float delta_theta = eecs467::angle_sum((delta_s_r - delta_s_l)/WHEEL_BASE, odo_state.theta);
 		
 		if(delta_s < 0)
 			delta_s = delta_s*(-1.0);
@@ -151,7 +157,6 @@ void motor_feedback_handler (const lcm::ReceiveBuffer* rbuf, const std::string& 
         action_state.alpha = eecs467::angle_diff(atan2(delta_y, delta_x), prev_theta);
         action_state.s = sqrt((delta_x)*(delta_x) + (delta_y)*(delta_y));
         action_state.phi = eecs467::angle_diff(odo_state.theta, prev_theta);
-        cout << "PHI - ALPHA = " << action_state.phi - action_state.alpha << endl;
         action_state.cur_time = msg->utime;
 	}
 	odo_state.last_updated = msg->utime;
