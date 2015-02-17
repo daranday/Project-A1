@@ -117,6 +117,11 @@ struct Odo_state : Pose_state_t{
 	int32_t right;
 	int8_t init;
 
+  int movement;
+  float angle;
+  pthread_t cmd_thread;
+  pthread_mutex_t cmd_mutex;
+
   pthread_mutex_t odo_lock;
 };
 
