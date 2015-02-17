@@ -1,7 +1,7 @@
 #ifndef __MAEBOT_MOVEMENT__
-#define __PARTICLE_FILTER__
+#define __MAEBOT_MOVEMENT__
 
-void forward(void *data);
+void forward(float distance, void *data);
 void stop(void *data);
 void rotate(float angle, void *data);
 

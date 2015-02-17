@@ -25,6 +25,7 @@ const int GREY_VALUE = 0;
 
 void init_expanded_grid();
 void expand_border();
-void grey_BFS(queue<IntPoint>& path);
+bool grey_BFS(queue<IntPoint>& path);
+void draw_expanded_map();
 
 #endif

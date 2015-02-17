@@ -95,7 +95,7 @@ void mapping_handler(const lcm::ReceiveBuffer* rbuf, const std::string& channel,
         single_line[3] = single_line[1] - y;
         
         // cout << "CURRENT V_THETA = " << slam_state.v_theta << endl;
-        if (fabs(slam_state.v_theta) > 0.5)
+        if (fabs(slam_state.v_theta) > 0.2)
             return;
 
         

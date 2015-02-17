@@ -28,14 +28,17 @@ static void* send_cmds(void *data)
 
 			// Feedback loop
 			if (state->left - starting_left_ticks < state->right - starting_right_ticks) {
-				max_left_speed += 0.05;
+				max_left_speed += 0.005;
 			}
 			else if (state->left - starting_left_ticks > state->right - starting_right_ticks) {
-				max_left_speed -= 0.05;
+				max_left_speed -= 0.005;
 			}
-
-			starting_left_ticks = state->left;
-			starting_right_ticks = state->right;
+			if (state->left - starting_left_ticks >= dist / 0.0002) {
+				state->movement = 1;
+				state->distance = 0;
+				starting_left_ticks = state->left;
+				starting_right_ticks = state->right;	
+			}
 		}
 		else if (state->movement == 1) {
 			// Stopped
@@ -76,9 +79,10 @@ static void* send_cmds(void *data)
 	return NULL;
 }
 
-void forward(void *data) {
+void forward(void distance, void *data) {
 	Odo_state *state = data;
 	state->movement = 0;
+	state->distance = distance;
 }
 
 void stop(void *data) {
