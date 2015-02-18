@@ -109,7 +109,7 @@ void mapping_handler(const lcm::ReceiveBuffer* rbuf, const std::string& channel,
         raytrace(single_line[0], single_line[1], single_line[2], single_line[3]);
     }
 
-    cout << "-----------" << counts << endl;
+    // cout << "-----------" << counts << endl;
     // vx_buffer_swap(mybuf);
     // cout << "byelasergrid" << endl;
 }

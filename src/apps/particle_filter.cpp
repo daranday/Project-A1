@@ -196,19 +196,24 @@ void action_model_updater (const lcm::ReceiveBuffer* rbuf, const std::string& ch
         gsl_rng * rng = gslu_rand_rng_alloc();
 
         float k1 = 1;
-        float k2 = 0.4;
+        float k2 = 0.1;
         double e1 = 0; 
         double e2 = 0;
         double e3 = 0;
+        double e4 = 0;
+        double e5 = 0;
         for (int i = 0; i < NUM_PARTICLE; ++i) {
-            e1 = gslu_rand_gaussian(rng, 0, k1*action_state.alpha);
-            e2 = gslu_rand_gaussian(rng, 0, k2*action_state.s);
-            e3 = gslu_rand_gaussian(rng, 0, k1*(action_state.phi-action_state.alpha));
+            e1 = gslu_rand_gaussian(rng, 0, sqrt(abs(k1*action_state.alpha)));
+            e2 = gslu_rand_gaussian(rng, 0, sqrt(abs(k2*action_state.s)));
+            e3 = gslu_rand_gaussian(rng, 0, sqrt(abs(k1*(action_state.phi-action_state.alpha))));
+            e4 = (gslu_rand_uniform(rng) - 0.5) * cell_sides_width_c / 2;
+            e5 = (gslu_rand_uniform(rng) - 0.5) * cell_sides_width_c / 2;
+
 
             float theta_e1 = eecs467::angle_sum(sampled_particles[i].thetap, e1);
 
-            particles[i].x = sampled_particles[i].xp + (action_state.s + e2)*cos(eecs467::angle_sum(theta_e1, action_state.alpha));
-            particles[i].y = sampled_particles[i].yp + (action_state.s + e2)*sin(eecs467::angle_sum(theta_e1, action_state.alpha));
+            particles[i].x = sampled_particles[i].xp + (action_state.s + e2)*cos(eecs467::angle_sum(theta_e1, action_state.alpha)) + (i < NUM_PARTICLE / 2. ? e4 : 0);
+            particles[i].y = sampled_particles[i].yp + (action_state.s + e2)*sin(eecs467::angle_sum(theta_e1, action_state.alpha)) + (i < NUM_PARTICLE / 2. ? e5 : 0);
             particles[i].theta = eecs467::angle_sum(eecs467::angle_sum(theta_e1, action_state.phi), e3);
             particles[i].xp = particles[i].x;
             particles[i].yp = particles[i].y;

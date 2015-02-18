@@ -66,7 +66,7 @@ extern vx_state_t vx_state;
 struct Pose_t {
   float x;
   float y;
-  float theta;
+  volatile float theta;
   Pose_t() :x(0), y(0), theta(0) {}
 };
 
@@ -98,10 +98,12 @@ struct State{
 
   char buffer_name[32];
 
+  bool need_publish;
+
 
   eecs467::OccupancyGrid grid;
 
-  State() :odo_counter(0), rp_counter(0), imu_counter(0), particle_counter(0), weight_updated(false), scale(8.0), grid(eecs467::OccupancyGrid(grid_width_c, grid_height_c, cell_sides_width_c)){}
+  State() :odo_counter(0), rp_counter(0), imu_counter(0), particle_counter(0), weight_updated(false), scale(8.0), grid(eecs467::OccupancyGrid(grid_width_c, grid_height_c, cell_sides_width_c)), need_publish(false) {}
   const char* get_next_buffer_name(const char* buffer_type) {
     if (strcmp("particle", buffer_type) == 0) {
       sprintf(buffer_name, "ptc%d", particle_counter++);
@@ -121,9 +123,11 @@ struct Odo_state : Pose_state_t{
 
   pthread_mutex_t odo_lock;
 
-  int movement;
+  volatile int movement;
+  float start_x;
+  float start_y;
   float distance;
-  float angle;
+  volatile float angle;
   maebot_motor_command_t cmd;
   pthread_t cmd_thread;
   pthread_mutex_t cmd_mutex;

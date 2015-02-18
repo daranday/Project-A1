@@ -379,16 +379,24 @@ int Maebot_View::start (int argc, char** argv)
 	
 	g_signal_connect_swapped(G_OBJECT(window), "destroy", G_CALLBACK(gtk_main_quit), NULL);
 
+	cout << "going to create cmd threads" << endl;
+
     pthread_t cmd_thread;
     pthread_create(&cmd_thread, NULL, send_cmds, (void*)NULL);
+
+	cout << "going to create path threads" << endl;
 
     pthread_t pathfinding_thread;
     // cout << "After pathfinding thread" << endl;
     pthread_create(&pathfinding_thread, NULL, pathfinding_loop, (void*)NULL);
     // cout << "After pthread_create" << endl;
 
+	cout << "going to create lcm threads" << endl;
+
     pthread_t lcm_handler_thread;
     pthread_create(&lcm_handler_thread, NULL, lcm_handler, (void*)(&state));
+
+	cout << "finish threads" << endl;
 
 	gtk_main (); // Blocks as long as GTK window is open
 	gdk_threads_leave ();
