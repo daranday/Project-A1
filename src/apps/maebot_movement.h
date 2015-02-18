@@ -1,8 +1,9 @@
 #ifndef __MAEBOT_MOVEMENT__
 #define __MAEBOT_MOVEMENT__
 
-void forward(float distance, void *data);
-void stop(void *data);
-void rotate(float angle, void *data);
+void* send_cmds(void *args);
+void forward(float distance);
+void stop();
+void rotate(float angle);
 
 #endif

@@ -11,6 +11,7 @@
 #include <lcm/lcm-cpp.hpp>
 #include <lcm/lcm.h>
 #include "lcmtypes/maebot_motor_feedback_t.hpp"
+#include "lcmtypes/maebot_motor_command_t.hpp"
 #include "lcmtypes/maebot_laser_scan_t.hpp"
 #include "lcmtypes/maebot_sensor_data_t.hpp"
 #include "lcmtypes/maebot_occupancy_grid_t.hpp"
@@ -117,13 +118,15 @@ struct Odo_state : Pose_state_t{
 	int32_t right;
 	int8_t init;
 
+
+  pthread_mutex_t odo_lock;
+
   int movement;
   float distance;
   float angle;
+  maebot_motor_command_t cmd;
   pthread_t cmd_thread;
   pthread_mutex_t cmd_mutex;
-
-  pthread_mutex_t odo_lock;
 };
 
 extern Odo_state odo_state;

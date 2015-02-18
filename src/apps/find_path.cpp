@@ -1,4 +1,7 @@
 #include "find_path.h"
+#include "maebot_movement.h"
+
+#include <map>
 
 eecs467::OccupancyGrid expanded_grid;
 
@@ -42,7 +45,7 @@ void back_trace(deque<IntPoint>& path, int end_pos_x, int end_pos_y) {
                 break;
             case UP:
                 cur_pos.y--;
-                break;expanded_grid
+                break;
             default:
                 cout << "reach unknown" << expanded_grid.logOdds(cur_pos.x, cur_pos.y);
                 break;
@@ -64,7 +67,7 @@ bool check_cell(deque<IntPoint>& path, deque<IntPoint>& Q, int x, int y, const i
     return false;
 }
 
-bool grey_BFS(deque<IntPoint>&expanded_grid path) {
+bool grey_BFS(deque<IntPoint>&path) {
     IntPoint start_pos = global_position_to_grid_cell(DoublePoint(slam_state.x, slam_state.y), state.grid);
 
     expanded_grid.setLogOdds(start_pos.x,start_pos.y, START);
@@ -122,21 +125,25 @@ void draw_expanded_map() {
     // std::cout << "done shifting\n";
 
     if (im != NULL) {
-
+        // cout << "inside if statement" << endl;
         vx_object_t * vo = vxo_image_from_u8(im, VXO_IMAGE_NOFLAGS, VX_TEX_MIN_FILTER);
-
+        // cout << "created object" << endl;
         vx_buffer_t *vb = vx_world_get_buffer(vx_state.world, "expanded_map");
+        // cout << "got buffer" << endl;
         vx_buffer_add_back(vb,  vxo_chain (
-                                    vxo_mat_translate3 (state.scale * (expanded_grid.originInGlobalFrame().x-5), 
+                                    vxo_mat_translate3 (state.scale * (expanded_grid.originInGlobalFrame().x-15), 
                                                         state.scale * expanded_grid.originInGlobalFrame().y, 
                                                         -0.001), 
                                     vxo_mat_scale(state.scale * expanded_grid.metersPerCell()), vo));
+        // cout << "add back" << endl;
         vx_buffer_swap(vb);
+        // cout << "swap" << endl;
     }
     else {
         printf("Error converting to image");
     }
     image_u8_destroy(im);
+    // cout << "destroy" << endl;
     // cout << "byegrid" << endl;
 }
 
@@ -193,7 +200,7 @@ bool obstacle_trace(double x0, double y0, double x1, double y1) {
 
 void navigate(deque<IntPoint>& path)
 {
-    int start_point = path.size() - 1
+    int start_point = path.size() - 1;
     while (start_point >= 1) {
         int i = 1;
         while (!obstacle_trace(path[start_point].x, path[start_point].y, path[i].x, path[i].y)) {
@@ -210,10 +217,10 @@ void navigate(deque<IntPoint>& path)
         float y_diff = world_start.y - world_end.y;
         float theta = atan2(y_diff,x_diff);
         float current_theta = slam_state.theta;
-        rotate(theta - current_theta, odo_state);
+        rotate(theta - current_theta);
         // Move forward a set distance
         float dist = sqrt((x_diff * x_diff) + (y_diff * y_diff));
-        forward(dist, odo_state);
+        forward(dist);
         usleep(200000);
 
         DoublePoint slam_world_coord = DoublePoint(slam_state.x, slam_state.y);
@@ -232,15 +239,23 @@ void navigate(deque<IntPoint>& path)
     }
 }
 
-void movement_control_loop () {
+void* pathfinding_loop(void* args) {
     bool completed = false;
     deque<IntPoint> path;
+    // cout << "before init" << endl;
     init_expanded_grid();
+    // cout << "before while" << endl;
 
     while (completed == false) {
         expand_border();
+        // cout << "expand_border" << endl;
         completed = grey_BFS(path);
+        // cout << "grey_BFS" << endl;
         draw_expanded_map();
+        // cout << "draw_expanded_map" << endl;
         navigate(path);
+        // cout << "navigate" << endl;
     }
+    // cout << "after while" << endl;
+    return NULL;
 }

@@ -1,4 +1,6 @@
 #include "maebot_view.h"
+#include "find_path.h"
+#include "maebot_movement.h"
 
 #include <string>
 
@@ -376,6 +378,14 @@ int Maebot_View::start (int argc, char** argv)
 	gtk_widget_show (canvas); // XXX Show all causes errors!
 	
 	g_signal_connect_swapped(G_OBJECT(window), "destroy", G_CALLBACK(gtk_main_quit), NULL);
+
+    pthread_t cmd_thread;
+    pthread_create(&cmd_thread, NULL, send_cmds, (void*)NULL);
+
+    pthread_t pathfinding_thread;
+    // cout << "After pathfinding thread" << endl;
+    pthread_create(&pathfinding_thread, NULL, pathfinding_loop, (void*)NULL);
+    // cout << "After pthread_create" << endl;
 
     pthread_t lcm_handler_thread;
     pthread_create(&lcm_handler_thread, NULL, lcm_handler, (void*)(&state));

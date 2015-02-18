@@ -25,7 +25,9 @@ const int GREY_VALUE = 0;
 
 void init_expanded_grid();
 void expand_border();
-bool grey_BFS(queue<IntPoint>& path);
+bool grey_BFS(deque<IntPoint>& path);
 void draw_expanded_map();
+void navigate(deque<IntPoint>& path);
+void* pathfinding_loop(void* args);
 
 #endif

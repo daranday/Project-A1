@@ -1,5 +1,7 @@
 #include "maebot_view.h"
 #include "particle_filter.h"
+#include "find_path.h"
+#include "maebot_movement.h"
 
 #include <iostream>
 #include <string>
@@ -196,6 +198,14 @@ int main(int argc, char** argv) {
 
     pthread_t grid_broadcast_thread;
     pthread_create(&grid_broadcast_thread, NULL, grid_broadcast_generator, (void*)NULL);
+    
+    // pthread_t cmd_thread;
+    // pthread_create(&cmd_thread, NULL, send_cmds, (void*)NULL);
+
+    // pthread_t pathfinding_thread;
+    // cout << "After pathfinding thread" << endl;
+    // pthread_create(&pathfinding_thread, NULL, pathfinding_loop, (void*)NULL);
+    // cout << "After pthread_create" << endl;
 
     Maebot_View maebot_world;
     maebot_world.start(argc, argv);
